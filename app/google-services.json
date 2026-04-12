@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "1032842503966",
+    "project_id": "anthuria3dinterior",
+    "storage_bucket": "anthuria3dinterior.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1032842503966:android:8c08f7fc0bbedc84df4b0f",
+        "android_client_info": {
+          "package_name": "com.inania.Anthuria"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1032842503966-1sdtqklh8mki0k4lir2basijf1ubhamv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtcUMnhbir4GzSbp1BJGgrQpF_gjYs15A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1032842503966-1sdtqklh8mki0k4lir2basijf1ubhamv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
