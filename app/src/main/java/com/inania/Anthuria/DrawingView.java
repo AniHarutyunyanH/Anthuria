@@ -2323,4 +2323,250 @@ public class DrawingView extends View {
             return true;
         }
     }
+
+    // -------------------------------------------------------------------------
+    // Theme support
+    // -------------------------------------------------------------------------
+
+    /**
+     * Color palette for the 2D canvas. Instantiate with {@code isDark=true} for night mode.
+     * All color values are Android ARGB integers (as returned by {@link Color#parseColor}).
+     */
+    public static final class CanvasTheme {
+        public final int background;
+        public final int wall;
+        public final int wallPreview;
+        public final int dimensionText;
+        public final int roomText;
+        public final int furnitureStroke;
+        public final int guide;
+
+        public CanvasTheme(boolean isDark) {
+            if (isDark) {
+                background    = Color.parseColor("#14141F");
+                wall          = Color.parseColor("#D0D0E8");
+                wallPreview   = Color.argb(180, 208, 208, 232);
+                dimensionText = Color.parseColor("#9090A8");
+                roomText      = Color.parseColor("#B0B0CC");
+                furnitureStroke = Color.parseColor("#4ABAED");
+                guide         = Color.argb(200, 80, 150, 204);
+            } else {
+                background    = Color.parseColor("#FAFAFA");
+                wall          = Color.BLACK;
+                wallPreview   = Color.argb(180, 0, 0, 0);
+                dimensionText = Color.GRAY;
+                roomText      = Color.DKGRAY;
+                furnitureStroke = Color.parseColor("#4ABAED");
+                guide         = Color.argb(200, 120, 190, 255);
+            }
+        }
+    }
+
+    /**
+     * Applies a light or dark color palette to all canvas paints and triggers a redraw.
+     * Call this from the Activity whenever the system night mode changes — no data is lost.
+     */
+    public void applyTheme(boolean isDark) {
+        CanvasTheme t = new CanvasTheme(isDark);
+        setBackgroundColor(t.background);
+
+        wallPaint.setColor(t.wall);
+        chainWallPaint.setColor(t.wall);
+        orphanWallPaint.setColor(t.wall);
+        previewPaint.setColor(t.wallPreview);
+        dimensionPaint.setColor(t.dimensionText);
+        textPaint.setColor(t.roomText);
+        furnitureStrokePaint.setColor(t.furnitureStroke);
+        guidePaint.setColor(t.guide);
+
+        // Propagate to rooms (they have their own internal paints)
+        for (Room room : rooms) {
+            room.applyTheme(isDark, t.background);
+        }
+        // Sync cutout color for loose walls (not part of any room)
+        for (Wall w : orphanWalls) w.cutoutColor = t.background;
+        for (Wall w : chainWalls)  w.cutoutColor = t.background;
+
+        invalidate();
+    }
+
+    // -------------------------------------------------------------------------
+    // Floor plan serialization
+    // -------------------------------------------------------------------------
+
+    /**
+     * Serializes the entire floor plan (rooms, loose walls, furniture) to a JSON object.
+     * Coordinates are in canvas pixels; metric equivalents are included alongside.
+     *
+     * @throws org.json.JSONException if serialization fails (should never happen with valid data)
+     */
+    public JSONObject getFloorPlanJson() throws Exception {
+        JSONObject root = new JSONObject();
+        root.put("pixelsPerMeter", pixelsPerMeter);
+        root.put("savedAt", System.currentTimeMillis());
+
+        // --- Closed rooms ---
+        JSONArray roomsArr = new JSONArray();
+        for (Room room : rooms) {
+            JSONObject roomObj = new JSONObject();
+            JSONArray wallsArr = new JSONArray();
+            for (Wall w : room.getWalls()) {
+                wallsArr.put(wallToJson(w));
+            }
+            roomObj.put("walls", wallsArr);
+            roomObj.put("areaSqMeters", room.computeAreaSqMeters(pixelsPerMeter));
+            roomsArr.put(roomObj);
+        }
+        root.put("rooms", roomsArr);
+
+        // --- Loose walls (chain + orphan, not yet forming a closed room) ---
+        JSONArray looseArr = new JSONArray();
+        for (Wall w : chainWalls)  looseArr.put(wallToJson(w));
+        for (Wall w : orphanWalls) looseArr.put(wallToJson(w));
+        root.put("looseWalls", looseArr);
+
+        // --- Furniture ---
+        JSONArray furnArr = new JSONArray();
+        for (FurnitureItem f : furnitureItems) {
+            JSONObject fObj = new JSONObject();
+            fObj.put("id",             f.id);
+            fObj.put("type",           f.type);
+            fObj.put("x",              f.position.x);
+            fObj.put("y",              f.position.y);
+            fObj.put("widthPx",        f.widthPx);
+            fObj.put("depthPx",        f.depthPx);
+            fObj.put("widthM",         f.widthPx / pixelsPerMeter);
+            fObj.put("depthM",         f.depthPx / pixelsPerMeter);
+            fObj.put("rotationDeg",    f.rotationDeg);
+            fObj.put("attachmentSide", f.attachmentSide);
+            fObj.put("elevationM",     f.elevationM);
+            furnArr.put(fObj);
+        }
+        root.put("furniture", furnArr);
+
+        return root;
+    }
+
+    /**
+     * Renders the current view to a Bitmap suitable for use as a save preview.
+     * Uses a white background regardless of the active canvas theme so the preview
+     * always looks clean in thumbnails and notifications.
+     */
+    public Bitmap exportPreviewBitmap() {
+        return generateBlueprint();
+    }
+
+    // -------------------------------------------------------------------------
+    // Floor plan loading
+    // -------------------------------------------------------------------------
+
+    /**
+     * Restores the canvas from a JSON object previously produced by {@link #getFloorPlanJson()}.
+     * Pushes the current state onto the undo stack before clearing, so the user can undo the load.
+     */
+    public void loadFloorPlanJson(JSONObject json) throws Exception {
+        saveState();
+
+        rooms.clear();
+        chainWalls.clear();
+        orphanWalls.clear();
+        furnitureItems.clear();
+        aiItems.clear();
+        chainStartVertex = null;
+        chainLastVertex  = null;
+        selectedFurniture = null;
+
+        float ppm = (float) json.optDouble("pixelsPerMeter", 100f);
+        pixelsPerMeter = ppm;
+
+        // Closed rooms
+        JSONArray roomsArr = json.optJSONArray("rooms");
+        if (roomsArr != null) {
+            for (int i = 0; i < roomsArr.length(); i++) {
+                JSONObject roomObj = roomsArr.getJSONObject(i);
+                JSONArray  wallsArr = roomObj.optJSONArray("walls");
+                if (wallsArr == null) continue;
+                List<Wall> walls = deserializeWalls(wallsArr, ppm);
+                if (!walls.isEmpty()) rooms.add(new Room(walls));
+            }
+        }
+
+        // Loose walls (chain / orphan)
+        JSONArray looseArr = json.optJSONArray("looseWalls");
+        if (looseArr != null) {
+            orphanWalls.addAll(deserializeWalls(looseArr, ppm));
+        }
+
+        // Furniture
+        JSONArray furnArr = json.optJSONArray("furniture");
+        int maxId = 0;
+        if (furnArr != null) {
+            for (int i = 0; i < furnArr.length(); i++) {
+                JSONObject fObj = furnArr.getJSONObject(i);
+                int   fId  = fObj.optInt("id", furnitureIdSeq + i);
+                float x    = (float) fObj.optDouble("x", 0);
+                float y    = (float) fObj.optDouble("y", 0);
+                float wPx  = (float) fObj.optDouble("widthPx", 100);
+                float dPx  = (float) fObj.optDouble("depthPx", 100);
+                float rot  = (float) fObj.optDouble("rotationDeg", 0);
+                FurnitureItem f = new FurnitureItem(fId, fObj.optString("type", ""),
+                        new PointF(x, y), rot, false, 1, wPx, dPx);
+                f.attachmentSide = fObj.optInt("attachmentSide", 0);
+                f.elevationM     = (float) fObj.optDouble("elevationM", 0);
+                furnitureItems.add(f);
+                if (fId > maxId) maxId = fId;
+            }
+        }
+        furnitureIdSeq = maxId + 1;
+
+        invalidate();
+    }
+
+    /**
+     * Deserializes a JSON array of wall objects, reconnecting shared corners via a coordinate
+     * cache so coincident endpoints use the same {@link PointF} instance (required for the
+     * corner-drag editor to work correctly after load).
+     */
+    private List<Wall> deserializeWalls(JSONArray arr, float ppm) throws Exception {
+        java.util.HashMap<String, PointF> pts = new java.util.HashMap<>();
+        List<Wall> result = new ArrayList<>();
+
+        for (int i = 0; i < arr.length(); i++) {
+            JSONObject wObj = arr.getJSONObject(i);
+            // wallToJson() stores coordinates in meters (divided by ppm)
+            float x1 = (float) (wObj.getDouble("x1") * ppm);
+            float y1 = (float) (wObj.getDouble("y1") * ppm);
+            float x2 = (float) (wObj.getDouble("x2") * ppm);
+            float y2 = (float) (wObj.getDouble("y2") * ppm);
+
+            Wall w = new Wall(cachedPoint(pts, x1, y1), cachedPoint(pts, x2, y2));
+            w.thicknessPx = (float) wObj.optDouble("thicknessPx", 20f);
+            String hex = wObj.optString("wallColorHex", "");
+            if (!hex.isEmpty()) w.wallColorHex = hex;
+            String tex = wObj.optString("wallTextureId", "");
+            if (!tex.isEmpty()) w.wallTextureId = tex;
+
+            JSONArray ops = wObj.optJSONArray("openings");
+            if (ops != null) {
+                for (int j = 0; j < ops.length(); j++) {
+                    JSONObject opObj = ops.getJSONObject(j);
+                    Wall.Opening.Type type = Wall.Opening.Type.valueOf(opObj.getString("type"));
+                    // wallToJson() stores positionFactor as "pos", widthPx may be absent
+                    float pos = (float) opObj.optDouble("pos", opObj.optDouble("positionFactor", 0.5));
+                    Wall.Opening op = new Wall.Opening(type, pos);
+                    op.widthPx = (float) opObj.optDouble("widthPx", 80f);
+                    w.openings.add(op);
+                }
+            }
+            result.add(w);
+        }
+        return result;
+    }
+
+    private static PointF cachedPoint(java.util.HashMap<String, PointF> cache, float x, float y) {
+        String key = Math.round(x) + "," + Math.round(y);
+        PointF p = cache.get(key);
+        if (p == null) { p = new PointF(x, y); cache.put(key, p); }
+        return p;
+    }
 }

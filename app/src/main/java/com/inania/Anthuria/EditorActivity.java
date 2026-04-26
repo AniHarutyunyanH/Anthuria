@@ -65,6 +65,9 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
     private static final String PREFS_NAME = "AnthuriaPrefs";
     private static final String KEY_SKIP_DELETE_CONFIRM = "skip_delete_confirm";
 
+    /** Pass a plan id (from {@link FloorPlanStorage}) to open an existing plan for editing. */
+    public static final String EXTRA_PLAN_ID = "plan_id";
+
     private final OkHttpClient client = new OkHttpClient();
     private DrawingView drawingView;
     private Spinner roomTypeSpinner;
@@ -81,6 +84,7 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
     private ImageButton btnDeleteMode;
     private ImageButton btnTapeMeasure;
     private ImageButton btnBlueprint;
+    private ImageButton btnSave;
 
     private @Nullable View activeToolButton;
 
@@ -110,6 +114,7 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
         btnDeleteMode = findViewById(R.id.btn_delete_mode);
         btnTapeMeasure = findViewById(R.id.btn_tape_measure);
         btnBlueprint = findViewById(R.id.btn_blueprint);
+        btnSave = findViewById(R.id.btn_save);
 
         MaterialButton btnUndo = findViewById(R.id.btn_undo);
         MaterialButton btnRedo = findViewById(R.id.btn_redo);
@@ -123,6 +128,10 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
         setupBackground();
         drawingView.setMode(DrawingView.Mode.WALL);
         updateToolSelection(btnWallMode);
+
+        // Open existing plan if one was passed from AccountActivity.
+        String planId = getIntent().getStringExtra(EXTRA_PLAN_ID);
+        if (planId != null) loadPlanFromStorage(planId);
 
         btnBack.setOnClickListener(v -> finish());
         // Inside EditorActivity.java onCreate() or initialization block
@@ -262,6 +271,18 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
         });
 
         btnBlueprint.setOnClickListener(v -> shareBlueprint());
+        btnSave.setOnClickListener(v -> saveFloorPlan());
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Sync canvas colours with the current night-mode setting so the drawing
+        // reacts to theme changes even when the editor was already open.
+        boolean isDark = (getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        drawingView.applyTheme(isDark);
     }
 
     private void shareBlueprint() {
@@ -285,7 +306,10 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
 
     private void updateToolSelection(View activeBtn) {
         activeToolButton = activeBtn;
-        int highlight = Color.parseColor("#BBDEFB");
+        boolean isDark = (getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        int highlight = isDark ? Color.parseColor("#1A3A5C") : Color.parseColor("#BBDEFB");
         int normal = Color.TRANSPARENT;
         btnWallMode.setBackgroundColor(normal);
         btnDoorMode.setBackgroundColor(normal);
@@ -669,5 +693,68 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
             aiProposedFurnitureJson = finalJson;
             Toast.makeText(this, "Мебель от ИИ готова. Откройте 3D.", Toast.LENGTH_LONG).show();
         });
+    }
+
+    // -------------------------------------------------------------------------
+    // Save / Load floor plan (local storage)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Saves the current floor plan to the device's private internal storage.
+     * Runs on a background thread; shows a Toast on completion.
+     */
+    private void saveFloorPlan() {
+        Toast.makeText(this, "Сохранение…", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            try {
+                JSONObject planData = drawingView.getFloorPlanJson();
+                planData.put("roomType",   roomTypeSpinner.getSelectedItem().toString());
+                planData.put("wallHeight", wallHeight);
+                planData.put("wallColor",  wallColor);
+
+                Bitmap preview = drawingView.exportPreviewBitmap();
+                FloorPlanStorage.save(EditorActivity.this, planData, preview);
+
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Чертёж сохранён!", Toast.LENGTH_SHORT).show());
+            } catch (Exception e) {
+                Log.e("SAVE", "saveFloorPlan failed", e);
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Ошибка: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
+    /**
+     * Loads a previously saved floor plan from internal storage and restores it
+     * into the canvas. Runs on a background thread.
+     */
+    private void loadPlanFromStorage(String planId) {
+        new Thread(() -> {
+            try {
+                JSONObject json = FloorPlanStorage.load(EditorActivity.this, planId);
+                runOnUiThread(() -> {
+                    try {
+                        drawingView.loadFloorPlanJson(json);
+
+                        // Sync room-type spinner with the saved value.
+                        String saved = json.optString("roomType", "");
+                        for (int i = 0; i < roomTypeSpinner.getCount(); i++) {
+                            if (saved.equals(roomTypeSpinner.getItemAtPosition(i).toString())) {
+                                roomTypeSpinner.setSelection(i);
+                                break;
+                            }
+                        }
+                    } catch (Exception e) {
+                        Toast.makeText(this, "Ошибка загрузки чертежа", Toast.LENGTH_SHORT).show();
+                        Log.e("LOAD", "loadFloorPlanJson failed", e);
+                    }
+                });
+            } catch (Exception e) {
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Файл не найден", Toast.LENGTH_SHORT).show());
+                Log.e("LOAD", "FloorPlanStorage.load failed", e);
+            }
+        }).start();
     }
 }
