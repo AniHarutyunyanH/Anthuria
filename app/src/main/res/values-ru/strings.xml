@@ -53,4 +53,37 @@
     <string name="saved_at">Сохранено: </string>
     <string name="tape_measure">Рулетка</string>
     <string name="share_blueprint">Поделиться чертежом</string>
+    <string name="quantity">Кол-во</string>
+    <string name="select_items">Выберите элементы</string>
+    <string name="error_3d_prep">Ошибка подготовки 3D</string>
+    <string name="tape_measure_off">Рулетка выключена</string>
+    <string name="tape_measure_hint">Рулетка: первое касание — начало, отпустить — конец.</string>
+    <string name="edit_distance">Изменить расстояние (м)</string>
+    <string name="ai_furniture">Мебель от ИИ</string>
+    <string name="notifications_enabled">Уведомления включены</string>
+    <string name="notifications_disabled">Уведомления выключены</string>
+    <string name="support_contact">Поддержка: support@inania.com</string>
+    <string name="about_app">Anthuria — создайте дом своей мечты</string>
+    <string name="next">Далее</string>
+    <string name="lorem_ipsum">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</string>
+    <string name="previous">Назад</string>
+    <string name="action_settings">Настройки</string>
+    <string name="first_fragment_label">Первый фрагмент</string>
+    <string name="second_fragment_label">Второй фрагмент</string>
+
+    <!-- Settings screen -->
+    <string name="settings_general">Основные</string>
+    <string name="settings_support">Поддержка</string>
+    <string name="settings_notifications">Push-уведомления</string>
+    <string name="settings_dark_mode">Тёмная тема</string>
+    <string name="settings_help">Центр помощи</string>
+    <string name="settings_about">О приложении Anthuria</string>
+    <string name="settings_version">Версия 1.0.0</string>
+    <string name="settings_language">Язык</string>
+    <string name="language_english">Английский</string>
+    <string name="language_russian">Русский</string>
+
+    <!-- Account screen -->
+    <string name="stat_projects">Проекты</string>
+    <string name="edit_profile">Редактировать профиль</string>
 </resources>

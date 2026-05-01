@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Backgrounds — Dark -->
+    <color name="background_primary">#0F0F1A</color>
+    <color name="background_secondary">#1A1A2E</color>
+    <color name="background_card">#1E1E35</color>
+
+    <!-- Text — Dark -->
+    <color name="text_primary">#E8E8F0</color>
+    <color name="text_secondary">#9090A8</color>
+    <color name="text_hint">#5A5A6E</color>
+
+    <!-- Icons — Dark -->
+    <color name="icon_tint">#E8E8F0</color>
+    <color name="icon_tint_secondary">#9090A8</color>
+    <color name="icon_tint_disabled">#3A3A4E</color>
+
+    <!-- Dividers — Dark -->
+    <color name="divider">#2A2A3E</color>
+
+    <!-- Canvas — Dark -->
+    <color name="canvas_background">#14141F</color>
+    <color name="canvas_wall">#D0D0E8</color>
+    <color name="canvas_dimension_text">#9090A8</color>
+</resources>

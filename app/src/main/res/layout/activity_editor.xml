@@ -5,10 +5,9 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F7FA"
+    android:background="@color/canvas_background"
     tools:context=".EditorActivity">
 
-    <!-- Основная область рисования -->
     <com.inania.Anthuria.DrawingView
         android:id="@+id/drawing_view"
         android:layout_width="0dp"
@@ -18,7 +17,7 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- Верхняя панель управления -->
+    <!-- Top bar -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/top_bar"
         android:layout_width="match_parent"
@@ -26,6 +25,7 @@
         android:layout_margin="16dp"
         app:cardCornerRadius="16dp"
         app:cardElevation="8dp"
+        app:cardBackgroundColor="@color/background_card"
         app:layout_constraintTop_toTopOf="parent">
 
         <androidx.constraintlayout.widget.ConstraintLayout
@@ -42,7 +42,7 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:tint="#333333" />
+                app:tint="@color/icon_tint" />
 
             <Spinner
                 android:id="@+id/room_type_spinner"
@@ -61,9 +61,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="3D Вид"
-                android:textColor="#4ABAED"
+                android:textColor="@color/brand_blue"
                 app:icon="@android:drawable/ic_menu_compass"
-                app:iconTint="#4ABAED"
+                app:iconTint="@color/brand_blue"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
@@ -71,7 +71,7 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Левая панель инструментов -->
+    <!-- Side toolbar -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/side_tools"
         android:layout_width="56dp"
@@ -79,6 +79,7 @@
         android:layout_marginStart="16dp"
         app:cardCornerRadius="28dp"
         app:cardElevation="6dp"
+        app:cardBackgroundColor="@color/background_card"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/top_bar">
@@ -99,13 +100,13 @@
                 android:src="@drawable/ic_edit"
                 android:scaleType="centerInside"
                 android:padding="7dp"
-                app:tint="#4ABAED" />
+                app:tint="@color/brand_blue" />
 
             <View
                 android:layout_width="24dp"
                 android:layout_height="1dp"
                 android:layout_marginVertical="8dp"
-                android:background="#EEEEEE" />
+                android:background="@color/divider" />
 
             <ImageButton
                 android:id="@+id/btn_door_mode"
@@ -115,7 +116,7 @@
                 android:src="@drawable/ic_door"
                 android:padding="4dp"
                 android:scaleType="centerInside"
-                app:tint="#666666" />
+                app:tint="@color/icon_tint_secondary" />
 
             <ImageButton
                 android:id="@+id/btn_window_mode"
@@ -123,27 +124,29 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_menu_gallery"
-                app:tint="#666666" />
+                app:tint="@color/icon_tint_secondary" />
+
             <ImageButton
                 android:id="@+id/btn_angle"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_menu_edit"
-                app:tint="#666666" />
+                app:tint="@color/icon_tint_secondary" />
+
             <ImageButton
                 android:id="@+id/btn_add_furniture"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_input_add"
-                app:tint="#666666" />
+                app:tint="@color/icon_tint_secondary" />
 
             <View
                 android:layout_width="24dp"
                 android:layout_height="1dp"
                 android:layout_marginVertical="8dp"
-                android:background="#EEEEEE" />
+                android:background="@color/divider" />
 
             <ImageButton
                 android:id="@+id/btn_delete_mode"
@@ -151,13 +154,13 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_menu_delete"
-                app:tint="#FF5252" />
+                app:tint="@color/error_text" />
 
             <View
                 android:layout_width="24dp"
                 android:layout_height="1dp"
                 android:layout_marginVertical="8dp"
-                android:background="#EEEEEE" />
+                android:background="@color/divider" />
 
             <ImageButton
                 android:id="@+id/btn_tape_measure"
@@ -166,7 +169,7 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/tape_measure"
                 android:src="@android:drawable/ic_menu_directions"
-                app:tint="#666666" />
+                app:tint="@color/icon_tint_secondary" />
 
             <ImageButton
                 android:id="@+id/btn_blueprint"
@@ -175,7 +178,22 @@
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="@string/share_blueprint"
                 android:src="@android:drawable/ic_menu_share"
-                app:tint="#666666" />
+                app:tint="@color/icon_tint_secondary" />
+
+            <View
+                android:layout_width="24dp"
+                android:layout_height="1dp"
+                android:layout_marginVertical="8dp"
+                android:background="@color/divider" />
+
+            <ImageButton
+                android:id="@+id/btn_save"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Сохранить чертёж"
+                android:src="@android:drawable/ic_menu_save"
+                app:tint="@color/brand_blue" />
 
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
@@ -187,7 +205,7 @@
         android:layout_margin="24dp"
         android:text="AI Мебель"
         android:textColor="@android:color/white"
-        app:backgroundTint="#4ABAED"
+        app:backgroundTint="@color/brand_blue"
         app:icon="@android:drawable/ic_menu_manage"
         app:iconTint="@android:color/white"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -209,11 +227,11 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_marginEnd="8dp"
-            app:backgroundTint="@android:color/white"
+            app:backgroundTint="@color/background_card"
             app:cornerRadius="24dp"
             app:icon="@android:drawable/ic_menu_revert"
-            app:iconTint="#666666"
-            app:strokeColor="#DDDDDD"
+            app:iconTint="@color/icon_tint_secondary"
+            app:strokeColor="@color/divider"
             app:strokeWidth="1dp" />
 
         <com.google.android.material.button.MaterialButton
@@ -221,11 +239,11 @@
             style="@style/Widget.MaterialComponents.Button.Icon"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            app:backgroundTint="@android:color/white"
+            app:backgroundTint="@color/background_card"
             app:cornerRadius="24dp"
             android:src="@drawable/ic_arrow_back"
-            app:iconTint="#666666"
-            app:strokeColor="#DDDDDD"
+            app:iconTint="@color/icon_tint_secondary"
+            app:strokeColor="@color/divider"
             app:strokeWidth="1dp" />
     </LinearLayout>
 

@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8F9FA">
+    android:background="@color/background_primary">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -11,6 +11,7 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- Toolbar -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -24,23 +25,24 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_menu_revert"
-                app:tint="#333333" />
+                app:tint="@color/icon_tint" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Settings"
+                android:text="@string/settings"
                 android:textSize="24sp"
                 android:textStyle="bold"
-                android:textColor="#333333"
+                android:textColor="@color/text_primary"
                 android:layout_marginStart="16dp"/>
         </LinearLayout>
 
+        <!-- General section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="General"
-            android:textColor="#4ABAED"
+            android:text="@string/settings_general"
+            android:textColor="@color/brand_blue"
             android:textStyle="bold"
             android:layout_marginBottom="8dp"/>
 
@@ -49,6 +51,7 @@
             android:layout_height="wrap_content"
             app:cardCornerRadius="12dp"
             app:cardElevation="2dp"
+            app:cardBackgroundColor="@color/background_card"
             android:layout_marginBottom="24dp">
 
             <LinearLayout
@@ -57,19 +60,49 @@
                 android:orientation="vertical"
                 android:padding="8dp">
 
+                <!-- Language row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="12dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/settings_language"
+                        android:textColor="@color/text_primary"
+                        android:textSize="16sp"/>
+
+                    <Spinner
+                        android:id="@+id/spinner_language"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:minWidth="120dp"/>
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="@color/divider"
+                    android:layout_marginHorizontal="12dp"/>
+
                 <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/switch_notifications"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:padding="12dp"
-                    android:text="Push Notifications"
+                    android:text="@string/settings_notifications"
+                    android:textColor="@color/text_primary"
                     android:checked="true"
                     android:textSize="16sp"/>
 
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="#EEEEEE"
+                    android:background="@color/divider"
                     android:layout_marginHorizontal="12dp"/>
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
@@ -77,16 +110,18 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:padding="12dp"
-                    android:text="Dark Mode"
+                    android:text="@string/settings_dark_mode"
+                    android:textColor="@color/text_primary"
                     android:textSize="16sp"/>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
+        <!-- Support section -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Support"
-            android:textColor="#4ABAED"
+            android:text="@string/settings_support"
+            android:textColor="@color/brand_blue"
             android:textStyle="bold"
             android:layout_marginBottom="8dp"/>
 
@@ -94,7 +129,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:cardCornerRadius="12dp"
-            app:cardElevation="2dp">
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="@color/background_card">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -107,7 +143,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:padding="16dp"
-                    android:text="Help Center"
+                    android:text="@string/settings_help"
+                    android:textColor="@color/text_primary"
                     android:textSize="16sp"
                     android:clickable="true"
                     android:focusable="true"
@@ -116,7 +153,7 @@
                 <View
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
-                    android:background="#EEEEEE"
+                    android:background="@color/divider"
                     android:layout_marginHorizontal="12dp"/>
 
                 <TextView
@@ -124,7 +161,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:padding="16dp"
-                    android:text="About Anthuria"
+                    android:text="@string/settings_about"
+                    android:textColor="@color/text_primary"
                     android:textSize="16sp"
                     android:clickable="true"
                     android:focusable="true"
@@ -135,10 +173,10 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Version 1.0.0"
+            android:text="@string/settings_version"
             android:textAlignment="center"
             android:layout_marginTop="32dp"
-            android:textColor="#999999"
+            android:textColor="@color/text_secondary"
             android:textSize="12sp"/>
 
     </LinearLayout>

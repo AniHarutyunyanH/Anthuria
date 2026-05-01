@@ -9,7 +9,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import java.io.File;
 import java.util.ArrayList;
 
-public class FurnitureGalleryActivity extends AppCompatActivity {
+public class FurnitureGalleryActivity extends BaseActivity {
 
     private ListView listView;
     private ArrayList<File> modelFiles;

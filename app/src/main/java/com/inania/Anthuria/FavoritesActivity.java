@@ -5,7 +5,7 @@ import android.view.View;
 import android.widget.ImageButton;
 import androidx.appcompat.app.AppCompatActivity;
 
-public class FavoritesActivity extends AppCompatActivity {
+public class FavoritesActivity extends BaseActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

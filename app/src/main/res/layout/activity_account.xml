@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF">
+    android:background="@color/background_secondary">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -11,6 +11,7 @@
         android:orientation="vertical"
         android:padding="20dp">
 
+        <!-- Profile section -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -39,29 +40,72 @@
                 android:text="user@example.com"
                 android:textSize="18sp"
                 android:textStyle="bold"
-                android:textColor="#333333"/>
+                android:textColor="@color/text_primary"/>
 
             <Button
                 android:id="@+id/btn_logout"
                 style="@style/Widget.MaterialComponents.Button.TextButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Sign Out"
-                android:textColor="#FF5252" />
+                android:text="@string/logout"
+                android:textColor="@color/error_text" />
         </LinearLayout>
+
+        <!-- Stats bar -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="@color/background_card"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:padding="20dp">
+
+                    <TextView
+                        android:id="@+id/tv_project_count"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="0"
+                        android:textSize="28sp"
+                        android:textStyle="bold"
+                        android:textColor="@color/brand_blue"/>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/stat_projects"
+                        android:textSize="13sp"
+                        android:textColor="@color/text_secondary"/>
+                </LinearLayout>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
 
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="#EEEEEE"
-            android:layout_marginVertical="24dp"/>
+            android:background="@color/divider"
+            android:layout_marginVertical="20dp"/>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="My Projects"
+            android:text="@string/my_projects"
             android:textSize="20sp"
             android:textStyle="bold"
+            android:textColor="@color/text_primary"
             android:layout_marginBottom="16dp"/>
 
         <androidx.gridlayout.widget.GridLayout
@@ -69,37 +113,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             app:columnCount="2"
-            app:alignmentMode="alignMargins">
-
-            <androidx.cardview.widget.CardView
-                android:layout_width="0dp"
-                android:layout_height="150dp"
-                app:layout_columnWeight="1"
-                app:cardCornerRadius="12dp"
-                android:layout_margin="8dp">
-                <ImageView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
-                    android:src="@android:drawable/ic_menu_report_image"
-                    android:alpha="0.6"/>
-            </androidx.cardview.widget.CardView>
-
-            <androidx.cardview.widget.CardView
-                android:layout_width="0dp"
-                android:layout_height="150dp"
-                app:layout_columnWeight="1"
-                app:cardCornerRadius="12dp"
-                android:layout_margin="8dp">
-                <ImageView
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop"
-                    android:src="@android:drawable/ic_menu_report_image"
-                    android:alpha="0.6"/>
-            </androidx.cardview.widget.CardView>
-
-        </androidx.gridlayout.widget.GridLayout>
+            app:alignmentMode="alignMargins"/>
 
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

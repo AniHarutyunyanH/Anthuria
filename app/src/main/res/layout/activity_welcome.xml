@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#FFFFFF"
+    android:background="@color/background_secondary"
     android:padding="24dp">
 
     <ImageView
@@ -23,7 +23,7 @@
         android:text="Design Your Dream Home"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:textColor="#4ABAED"
+        android:textColor="@color/brand_blue"
         app:layout_constraintBottom_toTopOf="@+id/txt_desc"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
@@ -34,6 +34,7 @@
         android:layout_height="wrap_content"
         android:text="Explore rooms, furniture, and house plans in one place."
         android:textAlignment="center"
+        android:textColor="@color/text_secondary"
         android:textSize="16sp"
         android:layout_marginTop="16dp"
         app:layout_constraintBottom_toTopOf="@+id/btn_get_started"
@@ -44,7 +45,7 @@
         android:layout_width="match_parent"
         android:layout_height="60dp"
         android:text="Get Started"
-        android:backgroundTint="#4ABAED"
+        android:backgroundTint="@color/brand_blue"
         android:textColor="#FFFFFF"
         app:layout_constraintBottom_toBottomOf="parent" />
 

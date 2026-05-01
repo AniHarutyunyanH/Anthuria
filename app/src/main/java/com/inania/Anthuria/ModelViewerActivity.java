@@ -13,7 +13,7 @@ import com.google.ar.sceneform.rendering.ModelRenderable;
 
 import java.io.File;
 
-public class ModelViewerActivity extends AppCompatActivity {
+public class ModelViewerActivity extends BaseActivity {
     private SceneView sceneView;
     private ProgressBar progressBar;
 

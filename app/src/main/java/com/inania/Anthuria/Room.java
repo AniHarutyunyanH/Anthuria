@@ -22,8 +22,7 @@ public class Room {
         this.walls = walls;
 
         fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        fillPaint.setColor(Color.BLUE);
-        fillPaint.setAlpha(40); // Чуть прозрачнее для эстетики
+        fillPaint.setColor(Color.parseColor("#1A4ABAED")); // brand-blue tint, alpha ~10%
         fillPaint.setStyle(Paint.Style.FILL);
 
         strokePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -40,6 +39,26 @@ public class Room {
         areaPaint.setTextSize(32f);
         areaPaint.setTextAlign(Paint.Align.CENTER);
         areaPaint.setFakeBoldText(true);
+    }
+
+    /**
+     * Updates all internal paints to match the active canvas theme.
+     * Called from {@link com.inania.Anthuria.DrawingView#applyTheme(boolean)}.
+     */
+    public void applyTheme(boolean isDark, int canvasBackground) {
+        if (isDark) {
+            fillPaint.setColor(Color.argb(30, 74, 186, 237));   // brand-blue tint
+            strokePaint.setColor(Color.parseColor("#D0D0E8"));    // light wall on dark bg
+            areaPaint.setColor(Color.parseColor("#B0B0CC"));
+        } else {
+            fillPaint.setColor(Color.argb(26, 74, 186, 237));    // brand-blue tint
+            strokePaint.setColor(Color.BLACK);
+            areaPaint.setColor(Color.parseColor("#333333"));
+        }
+        // Sync opening cutout color for all walls so door/window gaps match canvas bg
+        for (Wall w : walls) {
+            w.cutoutColor = canvasBackground;
+        }
     }
 
     public List<Wall> getWalls() {

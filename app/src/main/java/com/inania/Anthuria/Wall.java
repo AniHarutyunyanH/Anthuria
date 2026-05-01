@@ -17,6 +17,12 @@ public class Wall {
     /** Optional texture id for wallpaper (e.g. wallpaper1). */
     public String wallTextureId;
     public List<Opening> openings = new ArrayList<>();
+    /**
+     * Color used to erase the wall line at door/window positions.
+     * Defaults to white (light canvas); set to the canvas background color for dark mode
+     * via {@link com.inania.Anthuria.DrawingView#applyTheme(boolean)}.
+     */
+    public int cutoutColor = Color.WHITE;
 
     public static class Opening {
         public enum Type { DOOR, WINDOW }
@@ -108,7 +114,7 @@ public class Wall {
             float angle = (float) Math.toDegrees(Math.atan2(end.y - start.y, end.x - start.x));
             canvas.rotate(angle);
 
-            openingPaint.setColor(Color.WHITE);
+            openingPaint.setColor(cutoutColor);
             openingPaint.setStyle(Paint.Style.FILL);
             canvas.drawRect(-op.widthPx/2, -thicknessPx/2 - 2, op.widthPx/2, thicknessPx/2 + 2, openingPaint);
 

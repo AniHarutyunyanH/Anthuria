@@ -57,13 +57,16 @@ import okhttp3.Response;
 /**
  * Floor plan editor: tools, undo/redo, angle setup, furniture catalog, AI export.
  */
-public class EditorActivity extends AppCompatActivity implements DrawingView.EditorCallback {
+public class EditorActivity extends BaseActivity implements DrawingView.EditorCallback {
 
     private static final String API_KEY = "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";
     private static final String API_URL = "https://openrouter.ai/api/v1/chat/completions";
     private static final String MODEL_NAME = "google/gemini-2.0-flash-001";
     private static final String PREFS_NAME = "AnthuriaPrefs";
     private static final String KEY_SKIP_DELETE_CONFIRM = "skip_delete_confirm";
+
+    /** Pass a plan id (from {@link FloorPlanStorage}) to open an existing plan for editing. */
+    public static final String EXTRA_PLAN_ID = "plan_id";
 
     private final OkHttpClient client = new OkHttpClient();
     private DrawingView drawingView;
@@ -81,6 +84,7 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
     private ImageButton btnDeleteMode;
     private ImageButton btnTapeMeasure;
     private ImageButton btnBlueprint;
+    private ImageButton btnSave;
 
     private @Nullable View activeToolButton;
 
@@ -110,6 +114,7 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
         btnDeleteMode = findViewById(R.id.btn_delete_mode);
         btnTapeMeasure = findViewById(R.id.btn_tape_measure);
         btnBlueprint = findViewById(R.id.btn_blueprint);
+        btnSave = findViewById(R.id.btn_save);
 
         MaterialButton btnUndo = findViewById(R.id.btn_undo);
         MaterialButton btnRedo = findViewById(R.id.btn_redo);
@@ -124,67 +129,22 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
         drawingView.setMode(DrawingView.Mode.WALL);
         updateToolSelection(btnWallMode);
 
+        String planId = getIntent().getStringExtra(EXTRA_PLAN_ID);
+        if (planId != null) loadPlanFromStorage(planId);
+
         btnBack.setOnClickListener(v -> finish());
-        // Inside EditorActivity.java onCreate() or initialization block
 
-        drawingView.setOnDimensionClickListener(new DrawingView.OnDimensionClickListener() {
-            @Override
-            public void onDimensionClicked(FurnitureItem item, Wall targetWall, float currentDistance) {
-                showEditDimensionDialog(item, targetWall, currentDistance);
-            }
-        });
+        drawingView.setOnDimensionClickListener((item, targetWall, currentDistance) -> showEditDimensionDialog(item, targetWall, currentDistance));
 
-        private void showEditDimensionDialog(FurnitureItem item, Wall targetWall, float currentDistance) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-            builder.setTitle("Редактировать расстояние (м)");
-
-            // Set up the input
-            final EditText input = new EditText(this);
-            input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-            // Pre-fill with current distance formatted to 2 decimals
-            input.setText(String.format(java.util.Locale.US, "%.2f", currentDistance));
-            
-            // Add some padding to the EditText
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT);
-            lp.setMargins(50, 0, 50, 0);
-            input.setLayoutParams(lp);
-
-            LinearLayout container = new LinearLayout(this);
-            container.addView(input);
-            builder.setView(container);
-
-            // Set up the buttons
-            builder.setPositiveButton("OK", (dialog, which) -> {
-                try {
-                    float newDistance = Float.parseFloat(input.getText().toString());
-                    drawingView.moveFurnitureByDistance(item, targetWall, newDistance);
-                } catch (NumberFormatException e) {
-                    Toast.makeText(EditorActivity.this, "Неверный формат", Toast.LENGTH_SHORT).show();
-                    drawingView.setHighlightedWall(null); // clear highlight on error
-                }
-            });
-
-            builder.setNegativeButton("Отмена", (dialog, which) -> {
-                dialog.cancel();
-                drawingView.setHighlightedWall(null); // clear highlight on cancel
-            });
-            
-            // Clear highlight if user taps outside the dialog
-            builder.setOnCancelListener(dialog -> drawingView.setHighlightedWall(null));
-
-            builder.show();
-}
         btnWallMode.setOnClickListener(v -> {
             if (drawingView.getMode() == DrawingView.Mode.WALL && v == activeToolButton) {
                 drawingView.setMode(DrawingView.Mode.NONE);
                 clearToolHighlight();
-                Toast.makeText(this, "Инструмент выключен", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.tool_off, Toast.LENGTH_SHORT).show();
             } else {
                 drawingView.setMode(DrawingView.Mode.WALL);
                 updateToolSelection(v);
-                Toast.makeText(this, "Режим стен", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.wall_mode, Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -218,7 +178,7 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
             }
             drawingView.setMode(DrawingView.Mode.ANGLE);
             updateToolSelection(v);
-            Toast.makeText(this, "Угол: стена A, затем B", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.angle_mode_hint, Toast.LENGTH_SHORT).show();
         });
 
         btnAddFurniture.setOnClickListener(v -> {
@@ -240,7 +200,7 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
             } else {
                 drawingView.setMode(DrawingView.Mode.DELETE);
                 updateToolSelection(v);
-                Toast.makeText(this, "Режим удаления", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.delete_mode, Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -253,15 +213,48 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
             if (drawingView.getMode() == DrawingView.Mode.TAPE_MEASURE && v == activeToolButton) {
                 drawingView.setMode(DrawingView.Mode.NONE);
                 clearToolHighlight();
-                Toast.makeText(this, "Рулетка выключена", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.tape_measure_off, Toast.LENGTH_SHORT).show();
             } else {
                 drawingView.setMode(DrawingView.Mode.TAPE_MEASURE);
                 updateToolSelection(v);
-                Toast.makeText(this, "Рулетка: первый касание — начало, отпускание — конец. Повтор — новая линия.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, R.string.tape_measure_hint, Toast.LENGTH_LONG).show();
             }
         });
 
         btnBlueprint.setOnClickListener(v -> shareBlueprint());
+        btnSave.setOnClickListener(v -> saveFloorPlan());
+    }
+
+    private void showEditDimensionDialog(FurnitureItem item, Wall targetWall, float currentDistance) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.edit_distance);
+
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        input.setText(String.format(java.util.Locale.US, "%.2f", currentDistance));
+
+        LinearLayout container = new LinearLayout(this);
+        container.setPadding(50, 20, 50, 0);
+        container.addView(input);
+        builder.setView(container);
+
+        builder.setPositiveButton(android.R.string.ok, (dialog, which) -> {
+            try {
+                float newDistance = Float.parseFloat(input.getText().toString());
+                drawingView.moveFurnitureByDistance(item, targetWall, newDistance);
+            } catch (NumberFormatException e) {
+                Toast.makeText(EditorActivity.this, R.string.number_format_error, Toast.LENGTH_SHORT).show();
+                drawingView.setHighlightedWall(null);
+            }
+        });
+
+        builder.setNegativeButton(R.string.cancel, (dialog, which) -> {
+            dialog.cancel();
+            drawingView.setHighlightedWall(null);
+        });
+
+        builder.setOnCancelListener(dialog -> drawingView.setHighlightedWall(null));
+        builder.show();
     }
 
     private void shareBlueprint() {
@@ -278,14 +271,16 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
             share.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             startActivity(Intent.createChooser(share, getString(R.string.share_blueprint)));
         } catch (Exception e) {
-            Toast.makeText(this, "Не удалось экспортировать PNG", Toast.LENGTH_SHORT).show();
-            Log.e("EDITOR", "Blueprint export", e);
+            Toast.makeText(this, "Blueprint export failed", Toast.LENGTH_SHORT).show();
         }
     }
 
     private void updateToolSelection(View activeBtn) {
         activeToolButton = activeBtn;
-        int highlight = Color.parseColor("#BBDEFB");
+        boolean isDark = (getResources().getConfiguration().uiMode
+                & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
+        int highlight = isDark ? Color.parseColor("#1A3A5C") : Color.parseColor("#BBDEFB");
         int normal = Color.TRANSPARENT;
         btnWallMode.setBackgroundColor(normal);
         btnDoorMode.setBackgroundColor(normal);
@@ -316,30 +311,30 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
     @Override
     public void onWallEditRequested(Wall wall, float currentLengthMeters) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Параметры стены");
+        builder.setTitle(R.string.wall_params);
 
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(48, 32, 48, 16);
 
         final EditText input = new EditText(this);
-        input.setHint("Длина (м)");
+        input.setHint(R.string.length_m);
         input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         input.setText(String.format("%.2f", currentLengthMeters));
         layout.addView(input);
 
         final EditText thickInput = new EditText(this);
-        thickInput.setHint("Толщина стены (px)");
+        thickInput.setHint(R.string.thickness_px);
         thickInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         thickInput.setText(String.format("%.0f", wall.getThicknessPx()));
         layout.addView(thickInput);
 
         final CheckBox lockCheck = new CheckBox(this);
-        lockCheck.setText("Зафиксировать размер");
+        lockCheck.setText(R.string.lock_size);
         layout.addView(lockCheck);
 
         builder.setView(layout);
-        builder.setPositiveButton("Применить", (d, w) -> {
+        builder.setPositiveButton(R.string.apply, (d, w) -> {
             try {
                 String valStr = input.getText().toString().replace(",", ".");
                 float newVal = Float.parseFloat(valStr);
@@ -351,10 +346,10 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
                     drawingView.updateWallThickness(wall, tpx);
                 }
             } catch (Exception e) {
-                Toast.makeText(this, "Ошибка формата числа", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.number_format_error, Toast.LENGTH_SHORT).show();
             }
         });
-        builder.setNegativeButton("Отмена", null);
+        builder.setNegativeButton(R.string.cancel, null);
         builder.show();
     }
 
@@ -369,42 +364,39 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
     private void showAngleDialog() {
         if (angleWallA == null || angleWallB == null || angleCorner == null) return;
 
-        Context ctx = this;
-        LinearLayout root = new LinearLayout(ctx);
+        LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(48, 24, 48, 16);
 
-        TextView hint = new TextView(ctx);
-        hint.setText("Какую стену вращать? Вторая останется на месте относительно общего угла.");
+        TextView hint = new TextView(this);
+        hint.setText(R.string.rotate_wall_q);
         root.addView(hint);
 
-        RadioGroup group = new RadioGroup(ctx);
-        RadioButton rbA = new RadioButton(ctx);
-        rbA.setId(View.generateViewId());
-        rbA.setText("Вращать стену A");
+        RadioGroup group = new RadioGroup(this);
+        RadioButton rbA = new RadioButton(this);
+        rbA.setText(R.string.rotate_wall_a);
         rbA.setChecked(true);
-        RadioButton rbB = new RadioButton(ctx);
-        rbB.setId(View.generateViewId());
-        rbB.setText("Вращать стену B");
+        RadioButton rbB = new RadioButton(this);
+        rbB.setText(R.string.rotate_wall_b);
         group.addView(rbA);
         group.addView(rbB);
         root.addView(group);
 
-        TextView angLabel = new TextView(ctx);
-        angLabel.setText("Целевой угол между стенами (°, от зафиксированной к вращаемой, против часовой):");
+        TextView angLabel = new TextView(this);
+        angLabel.setText(R.string.target_angle_label);
         angLabel.setPadding(0, 24, 0, 8);
         root.addView(angLabel);
 
-        EditText angleInput = new EditText(ctx);
+        EditText angleInput = new EditText(this);
         angleInput.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
         float cur = currentAngleBetweenAtCorner(angleWallA, angleWallB, angleCorner);
         angleInput.setText(String.format("%.1f", cur));
         root.addView(angleInput);
 
-        new AlertDialog.Builder(ctx)
-                .setTitle("Угол между стенами")
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.wall_angle)
                 .setView(root)
-                .setPositiveButton("Применить", (d, w) -> {
+                .setPositiveButton(R.string.apply, (d, w) -> {
                     try {
                         float target = Float.parseFloat(angleInput.getText().toString().replace(",", "."));
                         Wall wallToRotate = rbA.isChecked() ? angleWallA : angleWallB;
@@ -413,10 +405,10 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
                         drawingView.setMode(DrawingView.Mode.NONE);
                         clearToolHighlight();
                     } catch (Exception e) {
-                        Toast.makeText(ctx, "Некорректный угол", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, R.string.invalid_angle, Toast.LENGTH_SHORT).show();
                     }
                 })
-                .setNegativeButton("Отмена", (d, w) -> {
+                .setNegativeButton(R.string.cancel, (d, w) -> {
                     drawingView.setMode(DrawingView.Mode.NONE);
                     clearToolHighlight();
                 })
@@ -455,14 +447,14 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
 
     private void showDeleteConfirmationDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Подтверждение");
-        builder.setMessage("Удалить эту стену? Комната может быть расформирована.");
+        builder.setTitle(R.string.confirmation);
+        builder.setMessage(R.string.delete_wall_msg);
 
         final CheckBox dontAskAgain = new CheckBox(this);
-        dontAskAgain.setText("Не спрашивать снова");
+        dontAskAgain.setText(R.string.dont_ask_again);
         builder.setView(dontAskAgain);
 
-        builder.setPositiveButton("Удалить", (dialog, which) -> {
+        builder.setPositiveButton(R.string.delete, (dialog, which) -> {
             if (dontAskAgain.isChecked()) {
                 getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
                         .edit().putBoolean(KEY_SKIP_DELETE_CONFIRM, true).apply();
@@ -472,7 +464,7 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
             }
             pendingDeleteWall = null;
         });
-        builder.setNegativeButton("Отмена", (dialog, which) -> pendingDeleteWall = null);
+        builder.setNegativeButton(R.string.cancel, (dialog, which) -> pendingDeleteWall = null);
         builder.show();
     }
 
@@ -485,8 +477,7 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
 
         TextView title = new TextView(this);
         title.setTextSize(18f);
-        title.setTextColor(Color.DKGRAY);
-        title.setText("Добавить мебель");
+        title.setText(R.string.add_furniture);
         content.addView(title);
 
         String roomLabel = roomTypeSpinner.getSelectedItem().toString();
@@ -504,45 +495,32 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
             cb.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
             EditText count = new EditText(this);
-            count.setHint("Кол-во");
+            count.setHint(R.string.quantity);
             count.setText("1");
             count.setInputType(InputType.TYPE_CLASS_NUMBER);
-            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(160, ViewGroup.LayoutParams.WRAP_CONTENT);
-            count.setLayoutParams(cp);
-
             row.addView(cb);
             row.addView(count);
             content.addView(row);
-
             rows.add(new CatalogRow(typeId, cb, count));
         }
 
         MaterialButton apply = new MaterialButton(this);
-        apply.setText("Применить");
+        apply.setText(R.string.apply);
         apply.setOnClickListener(v -> {
             List<FurnitureItem> toAdd = new ArrayList<>();
             for (CatalogRow r : rows) {
                 if (!r.check.isChecked()) continue;
                 int n = 1;
-                try {
-                    n = Math.max(1, Math.min(20, Integer.parseInt(r.count.getText().toString().trim())));
-                } catch (Exception ignored) {
-                }
+                try { n = Math.max(1, Math.min(20, Integer.parseInt(r.count.getText().toString().trim()))); } catch (Exception ignored) {}
                 float[] wh = FurnitureLayout.defaultSizePx(r.typeId);
-                for (int i = 0; i < n; i++) {
-                    toAdd.add(new FurnitureItem(0, r.typeId, new PointF(0, 0), 0f, false, 1, wh[0], wh[1]));
-                }
+                for (int i = 0; i < n; i++) toAdd.add(new FurnitureItem(0, r.typeId, new PointF(0, 0), 0f, false, 1, wh[0], wh[1]));
             }
-            if (toAdd.isEmpty()) {
-                Toast.makeText(this, "Выберите позиции", Toast.LENGTH_SHORT).show();
-                return;
-            }
+            if (toAdd.isEmpty()) { Toast.makeText(this, R.string.select_items, Toast.LENGTH_SHORT).show(); return; }
             drawingView.addFurnitureFromCatalog(toAdd);
             sheet.dismiss();
             updateToolSelection(btnAddFurniture);
         });
         content.addView(apply);
-
         scroll.addView(content);
         sheet.setContentView(scroll);
         sheet.show();
@@ -552,12 +530,7 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
         final String typeId;
         final CheckBox check;
         final EditText count;
-
-        CatalogRow(String typeId, CheckBox check, EditText count) {
-            this.typeId = typeId;
-            this.check = check;
-            this.count = count;
-        }
+        CatalogRow(String typeId, CheckBox check, EditText count) { this.typeId = typeId; this.check = check; this.count = count; }
     }
 
     private void open3DView() {
@@ -571,8 +544,7 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
             intent.putExtra("wall_color", wallColor);
             startActivity(intent);
         } catch (Exception e) {
-            Toast.makeText(this, "Ошибка подготовки 3D сцены", Toast.LENGTH_SHORT).show();
-            Log.e("EDITOR", "3D Export Error", e);
+            Toast.makeText(this, R.string.error_3d_prep, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -581,15 +553,11 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
             JSONArray out = new JSONArray();
             if (aiJson != null && aiJson.trim().startsWith("[")) {
                 JSONArray a = new JSONArray(aiJson);
-                for (int i = 0; i < a.length(); i++) {
-                    out.put(a.get(i));
-                }
+                for (int i = 0; i < a.length(); i++) out.put(a.get(i));
             }
             if (manualJson != null && manualJson.trim().startsWith("[")) {
                 JSONArray m = new JSONArray(manualJson);
-                for (int i = 0; i < m.length(); i++) {
-                    out.put(m.get(i));
-                }
+                for (int i = 0; i < m.length(); i++) out.put(m.get(i));
             }
             return out.toString();
         } catch (Exception e) {
@@ -621,9 +589,7 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
             JSONArray messages = new JSONArray();
             messages.put(new JSONObject().put("role", "user").put("content", prompt));
             payload.put("messages", messages);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        } catch (Exception e) { e.printStackTrace(); }
 
         RequestBody body = RequestBody.create(payload.toString(), MediaType.get("application/json; charset=utf-8"));
         Request request = new Request.Builder()
@@ -632,12 +598,12 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
                 .post(body)
                 .build();
 
-        Toast.makeText(this, "ИИ анализирует пространство...", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, R.string.ai_analyzing, Toast.LENGTH_SHORT).show();
 
         client.newCall(request).enqueue(new Callback() {
             @Override
             public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                runOnUiThread(() -> Toast.makeText(EditorActivity.this, "Ошибка соединения", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(EditorActivity.this, R.string.connection_error, Toast.LENGTH_SHORT).show());
             }
 
             @Override
@@ -646,14 +612,9 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
                     try {
                         String data = response.body().string();
                         JSONObject json = new JSONObject(data);
-                        String aiContent = json.getJSONArray("choices")
-                                .getJSONObject(0)
-                                .getJSONObject("message")
-                                .getString("content");
+                        String aiContent = json.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content");
                         processAiResult(aiContent);
-                    } catch (Exception e) {
-                        Log.e("AI", "JSON parsing failed", e);
-                    }
+                    } catch (Exception e) { Log.e("AI", "JSON parsing failed", e); }
                 }
             }
         });
@@ -661,13 +622,52 @@ public class EditorActivity extends AppCompatActivity implements DrawingView.Edi
 
     private void processAiResult(String aiText) {
         String cleanedJson = aiText;
-        if (aiText.contains("[")) {
-            cleanedJson = aiText.substring(aiText.indexOf("["), aiText.lastIndexOf("]") + 1);
-        }
+        if (aiText.contains("[")) cleanedJson = aiText.substring(aiText.indexOf("["), aiText.lastIndexOf("]") + 1);
         final String finalJson = cleanedJson;
         runOnUiThread(() -> {
             aiProposedFurnitureJson = finalJson;
-            Toast.makeText(this, "Мебель от ИИ готова. Откройте 3D.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, R.string.ai_ready, Toast.LENGTH_LONG).show();
         });
+    }
+
+    private void saveFloorPlan() {
+        Toast.makeText(this, R.string.saving, Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            try {
+                JSONObject planData = drawingView.getFloorPlanJson();
+                planData.put("roomType",   roomTypeSpinner.getSelectedItem().toString());
+                planData.put("wallHeight", wallHeight);
+                planData.put("wallColor",  wallColor);
+
+                Bitmap preview = drawingView.exportPreviewBitmap();
+                FloorPlanStorage.save(EditorActivity.this, planData, preview);
+
+                runOnUiThread(() -> Toast.makeText(this, R.string.saved, Toast.LENGTH_SHORT).show());
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(this, getString(R.string.error) + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
+    private void loadPlanFromStorage(String planId) {
+        new Thread(() -> {
+            try {
+                JSONObject json = FloorPlanStorage.load(EditorActivity.this, planId);
+                runOnUiThread(() -> {
+                    try {
+                        drawingView.loadFloorPlanJson(json);
+                        String saved = json.optString("roomType", "");
+                        for (int i = 0; i < roomTypeSpinner.getCount(); i++) {
+                            if (saved.equals(roomTypeSpinner.getItemAtPosition(i).toString())) {
+                                roomTypeSpinner.setSelection(i);
+                                break;
+                            }
+                        }
+                    } catch (Exception e) { Toast.makeText(this, R.string.load_error, Toast.LENGTH_SHORT).show(); }
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(this, R.string.file_not_found, Toast.LENGTH_SHORT).show());
+            }
+        }).start();
     }
 }

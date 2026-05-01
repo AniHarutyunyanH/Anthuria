@@ -1,5 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Brand (same in both themes) -->
+    <color name="brand_blue">#4ABAED</color>
+    <color name="error_text">#FF5252</color>
+
+    <!-- Backgrounds — Light -->
+    <color name="background_primary">#F5F7FA</color>
+    <color name="background_secondary">#FFFFFF</color>
+    <color name="background_card">#FFFFFF</color>
+
+    <!-- Text — Light -->
+    <color name="text_primary">#1A1A2E</color>
+    <color name="text_secondary">#666666</color>
+    <color name="text_hint">#9E9E9E</color>
+
+    <!-- Icons — Light -->
+    <color name="icon_tint">#333333</color>
+    <color name="icon_tint_secondary">#666666</color>
+    <color name="icon_tint_disabled">#D1D1D1</color>
+
+    <!-- Dividers — Light -->
+    <color name="divider">#EEEEEE</color>
+
+    <!-- Canvas — Light (used by DrawingView.CanvasTheme) -->
+    <color name="canvas_background">#FAFAFA</color>
+    <color name="canvas_wall">#1A1A1A</color>
+    <color name="canvas_dimension_text">#666666</color>
+
+    <!-- Legacy aliases (keep for drawables/existing code) -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="inactive_gray">#9E9E9E</color>

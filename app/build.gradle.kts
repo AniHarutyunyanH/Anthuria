@@ -48,6 +48,8 @@ dependencies {
     implementation("com.gorisse.thomas.sceneform:sceneform:1.23.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.mongodb:bson:4.11.0")
+    implementation("org.mongodb:mongodb-driver-sync:4.11.0")
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.constraintlayout)

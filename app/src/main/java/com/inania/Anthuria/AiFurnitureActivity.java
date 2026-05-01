@@ -1,6 +1,7 @@
 package com.inania.Anthuria;
-
 import android.content.Intent;
+
+
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
@@ -28,7 +29,7 @@ import retrofit2.Response;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
-public class AiFurnitureActivity extends AppCompatActivity {
+public class AiFurnitureActivity extends BaseActivity {
 
     // ВАЖНО: Храним только "чистый" ключ
     private final String MY_API_KEY = "tsk_E98jLnAbffSOAp8WSgztiojeskyJ-K96stwavDw8aqS";

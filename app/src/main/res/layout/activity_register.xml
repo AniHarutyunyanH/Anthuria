@@ -4,15 +4,16 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F5F7FA"
+    android:background="@color/background_primary"
     tools:context=".RegisterActivity">
 
     <View
         android:id="@+id/topViewRegister"
         android:layout_width="match_parent"
         android:layout_height="220dp"
-        android:background="#4ABAED"
+        android:background="@color/brand_blue"
         app:layout_constraintTop_toTopOf="parent" />
+
     <ImageButton
         android:id="@+id/btn_close_anonymous"
         android:layout_width="48dp"
@@ -24,6 +25,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         app:tint="#FFFFFF" />
+
     <TextView
         android:id="@+id/registerTitle"
         android:layout_width="wrap_content"
@@ -54,6 +56,7 @@
         android:layout_marginTop="-40dp"
         app:cardCornerRadius="20dp"
         app:cardElevation="10dp"
+        app:cardBackgroundColor="@color/background_card"
         app:layout_constraintTop_toBottomOf="@id/topViewRegister">
 
         <LinearLayout
@@ -96,7 +99,7 @@
                 android:id="@+id/btn_register"
                 android:layout_width="match_parent"
                 android:layout_height="55dp"
-                android:backgroundTint="#4ABAED"
+                android:backgroundTint="@color/brand_blue"
                 android:text="SIGN UP"
                 android:textColor="#FFFFFF"
                 android:textSize="16sp"
@@ -112,7 +115,7 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="30dp"
         android:text="Already have an account? Login"
-        android:textColor="#4ABAED"
+        android:textColor="@color/brand_blue"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"

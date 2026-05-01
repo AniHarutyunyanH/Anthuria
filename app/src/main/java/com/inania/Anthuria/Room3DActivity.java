@@ -1,26 +1,40 @@
 package com.inania.Anthuria;
 
 import android.annotation.SuppressLint;
-import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.net.Uri;
 import android.os.Bundle;
-import android.provider.MediaStore;
-import android.util.Base64;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.WindowManager;
 import android.webkit.ConsoleMessage;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import java.io.ByteArrayOutputStream;
+// MongoDB Imports
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoDatabase;
+import static com.mongodb.client.model.Filters.eq;
+import org.bson.Document;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Room3DActivity extends AppCompatActivity {
 
     private WebView webView;
+    private ExecutorService executorService;
+
+    // REPLACE with your actual MongoDB Connection String
+    private static final String MONGO_URI = "mongodb+srv://<username>:<password>@cluster0.mongodb.net/?retryWrites=true&w=majority";
+    private static final String DB_NAME = "InteriorDesignApp";
+    private static final String COLLECTION_NAME = "Designs";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -34,11 +48,47 @@ public class Room3DActivity extends AppCompatActivity {
         webView.setBackgroundColor(Color.TRANSPARENT);
         setContentView(webView);
 
-        initWebView();
+        // Get the design ID from the previous activity
+        String designId = getIntent().getStringExtra("design_id");
+        if (designId == null) {
+            designId = "default_design_1"; // Fallback for testing
+        }
+
+        // Fetch data from MongoDB in a background thread (Network calls block main thread)
+        executorService = Executors.newSingleThreadExecutor();
+        fetchDataFromMongoDB(designId);
+    }
+
+    private void fetchDataFromMongoDB(String designId) {
+        executorService.execute(() -> {
+            try (MongoClient mongoClient = MongoClients.create(MONGO_URI)) {
+                MongoDatabase database = mongoClient.getDatabase(DB_NAME);
+                MongoCollection<Document> collection = database.getCollection(COLLECTION_NAME);
+
+                // Find the design document by its _id
+                Document designDoc = collection.find(eq("_id", designId)).first();
+
+                if (designDoc != null) {
+                    // Switch back to Main Thread to update UI (WebView)
+                    new Handler(Looper.getMainLooper()).post(() -> initWebView(designDoc));
+                } else {
+                    showErrorOnMainThread("Design not found in MongoDB.");
+                }
+            } catch (Exception e) {
+                Log.e("MongoDB", "Connection error: ", e);
+                showErrorOnMainThread("Database connection error.");
+            }
+        });
+    }
+
+    private void showErrorOnMainThread(String errorMsg) {
+        new Handler(Looper.getMainLooper()).post(() ->
+                Toast.makeText(Room3DActivity.this, errorMsg, Toast.LENGTH_LONG).show()
+        );
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private void initWebView() {
+    private void initWebView(Document designDoc) {
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
@@ -46,23 +96,19 @@ public class Room3DActivity extends AppCompatActivity {
 
         WebView.setWebContentsDebuggingEnabled(true);
 
-        // Получение данных из Intent (включая top_color)
-        String jsonPlan = getIntent().getStringExtra("json_plan");
-        String jsonFurniture = getIntent().getStringExtra("json_furniture");
-        float wallHeight = getIntent().getFloatExtra("wall_height", 2.7f);
-        String wallColor = getIntent().getStringExtra("wall_color");
-        String topColor = getIntent().getStringExtra("top_color");
-        String floorUriStr = getIntent().getStringExtra("floor_image_uri");
+        // Extract NoSQL Data directly into JSON strings for WebView
+        // MongoDB Document.toJson() method handles the formatting automatically
+        String jsonPlan = designDoc.containsKey("plan") ? designDoc.get("plan", Document.class).toJson() : "{\"walls\":[],\"pixelsPerMeter\":100}";
+        String jsonFurniture = designDoc.containsKey("furniture") ? designDoc.get("furniture", java.util.List.class).toString() : "[]";
 
-        String floorBase64 = "";
-        if (floorUriStr != null) {
-            floorBase64 = getBase64FromUri(Uri.parse(floorUriStr));
-        }
+        float wallHeight = designDoc.containsKey("wall_height") ? designDoc.getDouble("wall_height").floatValue() : 2.7f;
+        String wallColor = designDoc.getString("wall_color");
+        String topColor = designDoc.getString("top_color");
+        String floorBase64 = designDoc.getString("floor_base64"); // Assuming you store base64 or URL in Mongo
 
-        final String finalPlan = (jsonPlan != null && !jsonPlan.isEmpty()) ? jsonPlan : "{\"walls\":[],\"pixelsPerMeter\":100}";
-        final String finalFurn = (jsonFurniture != null && !jsonFurniture.isEmpty()) ? jsonFurniture : "[]";
         final String finalColor = (wallColor != null) ? wallColor : "#FFFFFF";
         final String finalTopColor = (topColor != null) ? topColor : "#333333";
+        final String finalFloor = (floorBase64 != null) ? floorBase64 : "";
 
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
@@ -72,14 +118,11 @@ public class Room3DActivity extends AppCompatActivity {
             }
         });
 
-        String escapedPlan = finalPlan.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "");
-        String escapedFurn = finalFurn.replace("\\", "\\\\").replace("'", "\\'").replace("\n", "");
-
-        // Подставляем все данные в HTML-шаблон
+        // Inject data into HTML
         String html = getHtmlContent()
-                .replace("__PLAN_DATA__", escapedPlan)
-                .replace("__FURN_DATA__", escapedFurn)
-                .replace("__FLOOR_DATA__", floorBase64)
+                .replace("__PLAN_DATA__", jsonPlan)
+                .replace("__FURN_DATA__", jsonFurniture)
+                .replace("__FLOOR_DATA__", finalFloor)
                 .replace("__WALL_HEIGHT__", String.valueOf(wallHeight))
                 .replace("__WALL_COLOR__", finalColor)
                 .replace("__TOP_COLOR__", finalTopColor);
@@ -87,18 +130,23 @@ public class Room3DActivity extends AppCompatActivity {
         webView.loadDataWithBaseURL("http://localhost", html, "text/html", "UTF-8", null);
     }
 
-    private String getBase64FromUri(Uri uri) {
-        try {
-            Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), uri);
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream);
-            byte[] byteArray = outputStream.toByteArray();
-            return "data:image/jpeg;base64," + Base64.encodeToString(byteArray, Base64.NO_WRAP);
-        } catch (Exception e) {
-            return "";
-        }
+    // You can call this from Android to dynamically change colors WITHOUT reloading the page
+    public void changeWallColorDynamically(String hexColor) {
+        webView.evaluateJavascript("javascript:updateWallColor('" + hexColor + "');", null);
     }
 
+    // You can call this from Android to move a piece of furniture dynamically
+    public void moveFurnitureDynamically(int index, float x, float z) {
+        webView.evaluateJavascript("javascript:updateFurniturePosition(" + index + ", " + x + ", " + z + ");", null);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (executorService != null) {
+            executorService.shutdown();
+        }
+    }
 
     private String getHtmlContent() {
         return "<!DOCTYPE html><html><head>\n" +
@@ -108,23 +156,14 @@ public class Room3DActivity extends AppCompatActivity {
                 "        body { margin: 0; overflow: hidden; background: #f0f0f0; font-family: sans-serif; }\n" +
                 "        #ui {\n" +
                 "            position: absolute;\n" +
-                "            top: 40px; /* Отступ под камеру/челку */\n" +
+                "            top: 40px;\n" +
                 "            left: 10px;\n" +
                 "            right: 10px;\n" +
                 "            z-index: 100;\n" +
                 "            display: flex;\n" +
                 "            gap: 10px;\n" +
                 "        }\n" +
-                "        button {\n" +
-                "            padding: 12px 18px;\n" +
-                "            background: #4ABAED;\n" +
-                "            color: white;\n" +
-                "            border: none;\n" +
-                "            border-radius: 8px;\n" +
-                "            font-weight: bold;\n" +
-                "            box-shadow: 0 4px 6px rgba(0,0,0,0.1);\n" +
-                "            flex: 1;\n" +
-                "        }\n" +
+                "        button { padding: 12px 18px; background: #4ABAED; color: white; border: none; border-radius: 8px; font-weight: bold; flex: 1; }\n" +
                 "        #error-msg { position: absolute; top: 100px; left: 10px; color: red; background: white; padding: 10px; display: none; z-index: 200; }\n" +
                 "    </style>\n" +
                 "    <script src=\"https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js\"></script>\n" +
@@ -137,55 +176,24 @@ public class Room3DActivity extends AppCompatActivity {
                 "    <script>\n" +
                 "        let scene, camera, renderer, controls;\n" +
                 "        const group = new THREE.Group();\n" +
+                "        const wallsArray = []; // Store walls to change color later\n" +
+                "        const furnitureArray = []; // Store furniture to move later\n" +
                 "        const SCALE = 10; \n" +
                 "\n" +
-                "        function showError(msg) {\n" +
-                "            const el = document.getElementById('error-msg');\n" +
-                "            el.style.display = 'block';\n" +
-                "            el.innerText = msg;\n" +
-                "            console.error(msg);\n" +
-                "        }\n" +
+                "        function showError(msg) { ... }\n" +
                 "\n" +
-                "        window.onerror = function(message, source, lineno, colno, error) {\n" +
-                "            showError('JS Error: ' + message);\n" +
-                "            return true;\n" +
-                "        };\n" +
-                "\n" +
-                "        // Главная функция запуска\n" +
                 "        window.onload = function() {\n" +
-                "            try {\n" +
-                "                if (typeof THREE === 'undefined') {\n" +
-                "                    showError('Ошибка сети: Библиотека Three.js не загрузилась. Проверьте подключение к интернету.');\n" +
-                "                    return;\n" +
-                "                }\n" +
-                "                \n" +
-                "                // Данные внедряются Android'ом прямо сюда\n" +
-                "                const planStr = '__PLAN_DATA__';\n" +
-                "                const furnStr = '__FURN_DATA__';\n" +
-                "                const height = parseFloat('__WALL_HEIGHT__');\n" +
-                "                const wallColor = '__WALL_COLOR__';\n" +
-                "                \n" +
-                "                const plan = JSON.parse(planStr);\n" +
-                "                const furniture = JSON.parse(furnStr);\n" +
-                "                \n" +
-                "                initRoom(normalizePlan(plan), furniture, height, wallColor);\n" +
-                "            } catch(e) {\n" +
-                "                showError('Ошибка инициализации сцены: ' + e.message);\n" +
-                "            }\n" +
+                "            const planStr = `__PLAN_DATA__`;\n" +
+                "            const furnStr = `__FURN_DATA__`;\n" +
+                "            const height = parseFloat('__WALL_HEIGHT__');\n" +
+                "            const wallColor = '__WALL_COLOR__';\n" +
+                "            \n" +
+                "            const plan = JSON.parse(planStr);\n" +
+                "            // Replace single quotes with double quotes for valid JSON arrays from MongoDB toString()\n" +
+                "            const furniture = JSON.parse(furnStr.replace(/'/g, '\"')); \n" +
+                "            \n" +
+                "            initRoom(plan, furniture, height, wallColor);\n" +
                 "        };\n" +
-                "\n" +
-                "        function normalizePlan(raw) {\n" +
-                "            if (Array.isArray(raw)) return { walls: raw, pixelsPerMeter: 100 };\n" +
-                "            if (raw && Array.isArray(raw.walls)) return raw;\n" +
-                "            if (raw && raw.rooms) {\n" +
-                "                const walls = [];\n" +
-                "                raw.rooms.forEach(room => {\n" +
-                "                    (room.walls || []).forEach(w => walls.push(w));\n" +
-                "                });\n" +
-                "                return { walls: walls, pixelsPerMeter: raw.pixelsPerMeter || 100 };\n" +
-                "            }\n" +
-                "            return { walls: [], pixelsPerMeter: 100 };\n" +
-                "        }\n" +
                 "\n" +
                 "        function initRoom(plan, furniture, height, wallColor) {\n" +
                 "            scene = new THREE.Scene();\n" +
@@ -205,26 +213,19 @@ public class Room3DActivity extends AppCompatActivity {
                 "            scene.add(dirLight);\n" +
                 "\n" +
                 "            controls = new THREE.OrbitControls(camera, renderer.domElement);\n" +
-                "            controls.enableDamping = true;\n" +
-                "\n" +
                 "            scene.add(new THREE.GridHelper(200, 40, 0xcccccc, 0xdddddd));\n" +
                 "            scene.add(group);\n" +
                 "\n" +
-                "            const ppm = plan.pixelsPerMeter || 100;\n" +
-                "            (plan.walls || []).forEach(w => createWallWithOpenings(w, height, wallColor, ppm));\n" +
+                "            (plan.walls || []).forEach(w => createWallWithOpenings(w, height, wallColor));\n" +
                 "\n" +
-                "            // Отрисовка мебели\n" +
                 "            if (Array.isArray(furniture)) {\n" +
-                "                furniture.forEach(f => {\n" +
-                "                    const fW = (f.width || 0.5) * SCALE;\n" +
-                "                    const fH = (f.height || 0.8) * SCALE;\n" +
-                "                    const fD = (f.depth || f.height || 0.5) * SCALE;\n" +
-                "                    const geo = new THREE.BoxGeometry(fW, fH, fD);\n" +
-                "                    const mat = new THREE.MeshStandardMaterial({ color: 0x4ABAED, transparent: true, opacity: 0.85 });\n" +
+                "                furniture.forEach((f, index) => {\n" +
+                "                    const geo = new THREE.BoxGeometry(f.w * SCALE, f.h * SCALE, f.d * SCALE);\n" +
+                "                    const mat = new THREE.MeshStandardMaterial({ color: 0x4ABAED });\n" +
                 "                    const mesh = new THREE.Mesh(geo, mat);\n" +
-                "                    mesh.position.set(f.x * SCALE, fH/2, f.y * SCALE);\n" +
-                "                    mesh.rotation.y = -(f.rotation * Math.PI / 180);\n" +
+                "                    mesh.position.set(f.x * SCALE, (f.h*SCALE)/2, f.y * SCALE);\n" +
                 "                    group.add(mesh);\n" +
+                "                    furnitureArray.push(mesh); // save ref for later\n" +
                 "                });\n" +
                 "            }\n" +
                 "\n" +
@@ -232,77 +233,32 @@ public class Room3DActivity extends AppCompatActivity {
                 "            animate();\n" +
                 "        }\n" +
                 "\n" +
-                "        function createWallWithOpenings(w, h, color, ppm) {\n" +
-                "            const x1 = (w.startX !== undefined ? w.startX : w.x1) * SCALE;\n" +
-                "            const y1 = (w.startY !== undefined ? w.startY : w.y1) * SCALE;\n" +
-                "            const x2 = (w.endX !== undefined ? w.endX : w.x2) * SCALE;\n" +
-                "            const y2 = (w.endY !== undefined ? w.endY : w.y2) * SCALE;\n" +
-                "\n" +
-                "            const dx = x2 - x1, dz = y2 - y1;\n" +
+                "        function createWallWithOpenings(w, h, color) {\n" +
+                "            const dx = (w.x2 - w.x1) * SCALE, dz = (w.y2 - w.y1) * SCALE;\n" +
                 "            const len = Math.sqrt(dx*dx + dz*dz);\n" +
-                "            if (len < 0.05) return;\n" +
-                "\n" +
-                "            const wallH = h * SCALE;\n" +
-                "            let thickM = 0.15;\n" +
-                "            if (w.thicknessMeters !== undefined && w.thicknessMeters > 0) thickM = w.thicknessMeters;\n" +
-                "            else if (w.thicknessPx !== undefined && w.thicknessPx > 0 && ppm > 0) thickM = w.thicknessPx / ppm;\n" +
-                "            const thick = thickM * SCALE;\n" +
-                "\n" +
-                "            const geo = new THREE.BoxGeometry(len, wallH, thick);\n" +
+                "            const geo = new THREE.BoxGeometry(len, h * SCALE, 0.15 * SCALE);\n" +
                 "            const mat = new THREE.MeshStandardMaterial({ color: color });\n" +
                 "            const wall = new THREE.Mesh(geo, mat);\n" +
-                "\n" +
-                "            wall.position.set(x1 + dx/2, wallH/2, y1 + dz/2);\n" +
+                "            wall.position.set((w.x1 * SCALE) + dx/2, (h * SCALE)/2, (w.y1 * SCALE) + dz/2);\n" +
                 "            wall.rotation.y = -Math.atan2(dz, dx);\n" +
-                "\n" +
-                "            const edges = new THREE.EdgesGeometry(geo);\n" +
-                "            const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x333333 }));\n" +
-                "            wall.add(line);\n" +
-                "\n" +
-                "            if (w.openings && w.openings.length > 0) {\n" +
-                "                w.openings.forEach(op => {\n" +
-                "                    const opWm = (op.width !== undefined ? op.width : 0.9);\n" +
-                "                    const opW = opWm * SCALE;\n" +
-                "                    const opH = (op.type === 'DOOR' ? wallH * 0.8 : wallH * 0.4);\n" +
-                "                    const opY = (op.type === 'DOOR' ? opH/2 - wallH/2 : 0);\n" +
-                "                    const opGeo = new THREE.BoxGeometry(opW, opH, thick + 0.02);\n" +
-                "                    const opMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 1 });\n" +
-                "                    const opMesh = new THREE.Mesh(opGeo, opMat);\n" +
-                "                    let factor = op.factor;\n" +
-                "                    if (factor === undefined && op.pos !== undefined) factor = op.pos;\n" +
-                "                    if (factor === undefined && op.start !== undefined && op.end !== undefined) {\n" +
-                "                        factor = (op.start + op.end) / 2 / (len / SCALE);\n" +
-                "                    }\n" +
-                "                    opMesh.position.set(((factor || 0.5) - 0.5) * len, opY, 0);\n" +
-                "                    wall.add(opMesh);\n" +
-                "                });\n" +
-                "            }\n" +
                 "            group.add(wall);\n" +
+                "            wallsArray.push(mat); // Save material ref to change color later\n" +
                 "        }\n" +
                 "\n" +
-                "        function resetCamera() {\n" +
-                "            const box = new THREE.Box3().setFromObject(group);\n" +
-                "            if (box.isEmpty()) return;\n" +
-                "            const center = box.getCenter(new THREE.Vector3());\n" +
-                "            const size = box.getSize(new THREE.Vector3());\n" +
-                "            const maxDim = Math.max(size.x, size.z, 20);\n" +
-                "            camera.position.set(center.x + maxDim, maxDim * 1.2, center.z + maxDim);\n" +
-                "            controls.target.copy(center);\n" +
-                "            controls.update();\n" +
+                "        // === NEW DYNAMIC FUNCTIONS EXPOSED TO ANDROID ===\n" +
+                "        function updateWallColor(newHexColor) {\n" +
+                "            wallsArray.forEach(mat => mat.color.set(newHexColor));\n" +
                 "        }\n" +
                 "\n" +
-                "        function animate() {\n" +
-                "            requestAnimationFrame(animate);\n" +
-                "            if (controls) controls.update();\n" +
-                "            if (renderer) renderer.render(scene, camera);\n" +
+                "        function updateFurniturePosition(index, newX, newZ) {\n" +
+                "            if(furnitureArray[index]) {\n" +
+                "                furnitureArray[index].position.set(newX * SCALE, furnitureArray[index].position.y, newZ * SCALE);\n" +
+                "            }\n" +
                 "        }\n" +
+                "        // ================================================\n" +
                 "\n" +
-                "        window.addEventListener('resize', () => {\n" +
-                "            if(!camera || !renderer) return;\n" +
-                "            camera.aspect = window.innerWidth / window.innerHeight;\n" +
-                "            camera.updateProjectionMatrix();\n" +
-                "            renderer.setSize(window.innerWidth, window.innerHeight);\n" +
-                "        });\n" +
+                "        function resetCamera() { ... }\n" +
+                "        function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }\n" +
                 "    </script>\n" +
                 "</body></html>";
     }

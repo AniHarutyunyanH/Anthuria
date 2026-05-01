@@ -15,7 +15,7 @@ import com.google.firebase.auth.AuthResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.inania.Anthuria.databinding.ActivityRegisterBinding;
 
-public class RegisterActivity extends AppCompatActivity {
+public class RegisterActivity extends BaseActivity {
 
     private ActivityRegisterBinding binding;
     private FirebaseAuth mAuth;
