@@ -31,9 +31,6 @@ import retrofit2.converter.gson.GsonConverterFactory;
 
 public class AiFurnitureActivity extends BaseActivity {
 
-    // ВАЖНО: Храним только "чистый" ключ
-    private final String MY_API_KEY = "tsk_E98jLnAbffSOAp8WSgztiojeskyJ-K96stwavDw8aqS";
-
     private FrameLayout sceneContainer;
     private SceneView sceneView;
     private Button btnAccept;
@@ -52,7 +49,7 @@ public class AiFurnitureActivity extends BaseActivity {
         initUI();
 
         Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl("https://api.tripo3d.ai/")
+                .baseUrl(ApiConfig.getTripoBaseUrl())
                 .addConverterFactory(GsonConverterFactory.create())
                 .build();
         tripoApi = retrofit.create(TripoApi.class);
@@ -83,10 +80,15 @@ public class AiFurnitureActivity extends BaseActivity {
         String promptText = etPrompt.getText().toString().trim();
         if (promptText.isEmpty()) return;
 
+        String tripoKey = ApiConfig.getTripoApiKey();
+        if (!ApiConfig.isConfigured(tripoKey)) {
+            showError(getString(R.string.api_keys_missing));
+            return;
+        }
+
         progressBar.setVisibility(View.VISIBLE);
         btnGenerate.setEnabled(false);
 
-        // --- NEW CORRECT CODE ---
         java.util.Map<String, Object> mainMap = new java.util.HashMap<>();
         mainMap.put("type", "text_to_model");
         mainMap.put("prompt", promptText); // Put prompt directly in the main map
@@ -95,7 +97,7 @@ public class AiFurnitureActivity extends BaseActivity {
 // mainMap.put("negative_prompt", "low quality, blurry");
 
         // AUTH HEADER
-        String cleanKey = MY_API_KEY.replace("Bearer ", "").trim();
+        String cleanKey = tripoKey.replace("Bearer ", "").trim();
         String authHeader = "Bearer " + cleanKey;
 
         tripoApi.createTask(authHeader, mainMap).enqueue(new Callback<ResponseBody>() {
@@ -127,7 +129,12 @@ public class AiFurnitureActivity extends BaseActivity {
         });
     }
     private void checkStatusLoop(String taskId) {
-        String authHeader = "Bearer " + MY_API_KEY.replace("Bearer ", "").trim();
+        String tripoKey = ApiConfig.getTripoApiKey();
+        if (!ApiConfig.isConfigured(tripoKey)) {
+            showError(getString(R.string.api_keys_missing));
+            return;
+        }
+        String authHeader = "Bearer " + tripoKey.replace("Bearer ", "").trim();
 
         tripoApi.getTaskStatus(authHeader, taskId).enqueue(new Callback<ResponseBody>() {
             @Override

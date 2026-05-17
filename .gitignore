@@ -13,3 +13,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# API keys (copy api-keys.properties.example → api-keys.properties)
+api-keys.properties
+**/api-keys.local.properties
+secrets.properties

@@ -59,8 +59,6 @@ import okhttp3.Response;
  */
 public class EditorActivity extends BaseActivity implements DrawingView.EditorCallback {
 
-    private static final String API_KEY = "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";
-    private static final String API_URL = "https://openrouter.ai/api/v1/chat/completions";
     private static final String MODEL_NAME = "google/gemini-2.0-flash-001";
     private static final String PREFS_NAME = "AnthuriaPrefs";
     private static final String KEY_SKIP_DELETE_CONFIRM = "skip_delete_confirm";
@@ -696,6 +694,11 @@ public class EditorActivity extends BaseActivity implements DrawingView.EditorCa
     }
 
     private void sendPlanToAi(String roomType) {
+        String apiKey = ApiConfig.getOpenRouterApiKey();
+        if (!ApiConfig.isConfigured(apiKey)) {
+            Toast.makeText(this, R.string.api_keys_missing, Toast.LENGTH_LONG).show();
+            return;
+        }
         String planJson = drawingView.getRoomDataAsJSON();
         String prompt = "Act as an interior designer. Room plan (JSON, meters): " + planJson +
                 ". Suggest furniture layout for a '" + roomType + "'. " +
@@ -711,8 +714,8 @@ public class EditorActivity extends BaseActivity implements DrawingView.EditorCa
 
         RequestBody body = RequestBody.create(payload.toString(), MediaType.get("application/json; charset=utf-8"));
         Request request = new Request.Builder()
-                .url(API_URL)
-                .addHeader("Authorization", "Bearer " + API_KEY)
+                .url(ApiConfig.getOpenRouterApiUrl())
+                .addHeader("Authorization", "Bearer " + apiKey)
                 .post(body)
                 .build();
 
