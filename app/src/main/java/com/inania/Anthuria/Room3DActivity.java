@@ -23,6 +23,7 @@ import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -38,6 +39,8 @@ public class Room3DActivity extends BaseActivity
     private FloatingActionButton fabAddFurniture;
     private ValueCallback<Uri[]> filePathCallback;
     private ActivityResultLauncher<String> imagePickerLauncher;
+    private TexturePickerBottomSheet texturePicker;
+    private String targetMeshId = "floor";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -69,6 +72,26 @@ public class Room3DActivity extends BaseActivity
         fabLp.setMargins(0, 0, 48, 48);
         root.addView(fabAddFurniture, fabLp);
         fabAddFurniture.setOnClickListener(v -> showFurnitureCatalogSheet());
+
+        texturePicker = new TexturePickerBottomSheet(this, new TexturePickerBottomSheet.Listener() {
+            @NonNull
+            @Override
+            public String getTargetMeshId() {
+                return targetMeshId;
+            }
+
+            @Override
+            public void onTextureSelected(@NonNull java.io.File webpFile, @NonNull String meshId) {
+                String dataUrl = TextureManager.fileToDataUrlBase64(webpFile);
+                if (dataUrl == null) {
+                    Toast.makeText(Room3DActivity.this, R.string.texture_save_failed, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                float repU = "floor".equals(meshId) ? 10f : 2f;
+                float repV = "floor".equals(meshId) ? 10f : 2f;
+                Room3DBridge.updateMeshTexture(webView, meshId, dataUrl, repU, repV);
+            }
+        });
 
         setContentView(root);
 
@@ -139,12 +162,14 @@ public class Room3DActivity extends BaseActivity
         boolean isDark = getSharedPreferences(AnthuriaApp.PREFS_NAME, MODE_PRIVATE)
                 .getBoolean(AnthuriaApp.KEY_DARK_MODE, false);
 
+        String bridgeJs = readAssetText(this, "room3d/three_js_bridge.js");
         String extJs = readAssetText(this, "room3d/scene_extensions.js");
-        String extBlock = extJs != null
-                ? "<script>\n" + extJs + "\n</script>\n" : "";
+        StringBuilder extBlock = new StringBuilder();
+        if (bridgeJs != null) extBlock.append("<script>\n").append(bridgeJs).append("\n</script>\n");
+        if (extJs != null) extBlock.append("<script>\n").append(extJs).append("\n</script>\n");
 
         String html = getHtmlContent()
-                .replace("__EXT_JS_BLOCK__", extBlock)
+                .replace("__EXT_JS_BLOCK__", extBlock.toString())
                 .replace("__PLAN_B64__",   planB64)
                 .replace("__FURN_B64__",   furnB64)
                 .replace("__WALL_HEIGHT__", String.valueOf(wallHeight))
@@ -157,6 +182,12 @@ public class Room3DActivity extends BaseActivity
     @Override
     public void onSceneReady() {
         // WebView scene initialized — optional hook for analytics
+    }
+
+    @Override
+    public void onOpenTexturePicker(String meshId) {
+        targetMeshId = (meshId != null && !meshId.isEmpty()) ? meshId : "floor";
+        runOnUiThread(() -> texturePicker.show());
     }
 
     @Override
@@ -368,7 +399,7 @@ public class Room3DActivity extends BaseActivity
                 "        </div>\n" +
                 "\n" +
                 "        <div id=\"tab-textures\" class=\"tab-content grid-layout\">\n" +
-                "            <div class=\"tex-swatch add-btn\" onclick=\"document.getElementById('custom-tex').click()\">+</div>\n" +
+                "            <div class=\"tex-swatch add-btn\" onclick=\"openAndroidTexturePicker()\">+</div>\n" +
                 "            <input type=\"file\" id=\"custom-tex\" accept=\"image/*\" style=\"display:none;\" onchange=\"applyCustomTexture(event)\">\n" +
                 "        </div>\n" +
                 "\n" +
@@ -941,6 +972,20 @@ public class Room3DActivity extends BaseActivity
                 "}\n" +
                 "function applyCustomColor(colorHex) { applyColor(colorHex); }\n" +
                 "\n" +
+                "function getSelectedMeshId() {\n" +
+                "    if (!selectedTarget) return 'floor';\n" +
+                "    const t = selectedTarget.userData.type;\n" +
+                "    if (t === 'floor') return 'floor';\n" +
+                "    if (t === 'wall') return 'wall_' + selectedTarget.userData.index;\n" +
+                "    if (t === 'furniture') return 'furniture_' + selectedTarget.userData.index;\n" +
+                "    return 'floor';\n" +
+                "}\n" +
+                "function openAndroidTexturePicker() {\n" +
+                "    if (typeof Android3D !== 'undefined' && Android3D.openTexturePicker)\n" +
+                "        Android3D.openTexturePicker(getSelectedMeshId());\n" +
+                "    else document.getElementById('custom-tex').click();\n" +
+                "}\n" +
+                "\n" +
                 "function applyCustomTexture(event) {\n" +
                 "    if (!selectedTarget || !event.target.files.length) return;\n" +
                 "    const file = event.target.files[0];\n" +
@@ -1445,6 +1490,62 @@ public class Room3DActivity extends BaseActivity
                 "    }\n" +
                 "    renderer.render(scene, camera);\n" +
                 "}\n" +
+                "\n" +
+                "// --- ANDROID TEXTURE BRIDGE ---\n" +
+                "window.ThreeJsBridge = {\n" +
+                "    updateMeshTexture: function(meshId, dataUrl, repeatU, repeatV) {\n" +
+                "        if (!dataUrl || !dataUrl.length) return;\n" +
+                "        // Ensure proper data URI prefix\n" +
+                "        if (!dataUrl.startsWith('data:')) {\n" +
+                "            dataUrl = 'data:image/webp;base64,' + dataUrl;\n" +
+                "        }\n" +
+                "        // Resolve target mesh/group\n" +
+                "        var target = null;\n" +
+                "        if (meshId === 'floor') {\n" +
+                "            target = floorMesh;\n" +
+                "        } else if (meshId.startsWith('furniture_')) {\n" +
+                "            var fi = parseInt(meshId.slice(10));\n" +
+                "            target = furnMeshes.find(function(m){ return m.userData.index === fi; }) || null;\n" +
+                "        } else if (meshId.startsWith('wall_')) {\n" +
+                "            var wi = parseInt(meshId.slice(5));\n" +
+                "            target = wallMeshes.find(function(m){ return m.userData.index === wi; }) || null;\n" +
+                "        }\n" +
+                "        if (!target) return;\n" +
+                "        // Cache key: reuse per meshId so we can dispose cleanly on next call\n" +
+                "        var cacheKey = '__android_' + meshId;\n" +
+                "        var prevTex = textureCache[cacheKey];\n" +
+                "        var loader = new THREE.TextureLoader();\n" +
+                "        loader.load(dataUrl, function(texture) {\n" +
+                "            texture.wrapS = THREE.RepeatWrapping;\n" +
+                "            texture.wrapT = THREE.RepeatWrapping;\n" +
+                "            texture.repeat.set(repeatU, repeatV);\n" +
+                "            texture.needsUpdate = true;\n" +
+                "            // Persist through buildScene() rebuilds\n" +
+                "            textureCache[cacheKey] = texture;\n" +
+                "            if (meshId === 'floor') {\n" +
+                "                appData.floor.texture = cacheKey;\n" +
+                "            } else if (target.userData && target.userData.data) {\n" +
+                "                target.userData.data.texture = cacheKey;\n" +
+                "            }\n" +
+                "            // Apply to every mesh in the group (wall, furniture) or the mesh itself (floor)\n" +
+                "            var applyTex = function(mesh) {\n" +
+                "                if (!mesh.material) return;\n" +
+                "                var mat = mesh.material;\n" +
+                "                if (mat.map && mat.map !== texture) mat.map.dispose();\n" +
+                "                mat.color.set(0xffffff);\n" +
+                "                mat.map = texture;\n" +
+                "                mat.needsUpdate = true;\n" +
+                "            };\n" +
+                "            if (target.isMesh) {\n" +
+                "                applyTex(target);\n" +
+                "            } else {\n" +
+                "                target.traverse(function(child) { if (child.isMesh) applyTex(child); });\n" +
+                "            }\n" +
+                "            // Dispose previous texture for this slot AFTER applying the new one\n" +
+                "            if (prevTex && prevTex !== texture) prevTex.dispose();\n" +
+                "        });\n" +
+                "    }\n" +
+                "};\n" +
                 "</script>\n" +
                 "</body>\n" +
                 "</html>";

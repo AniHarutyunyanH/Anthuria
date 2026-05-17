@@ -1,7 +1,23 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("com.google.gms.google-services")
 }
+
+val apiKeysFile = rootProject.file("api-keys.properties")
+val apiKeys = Properties()
+if (apiKeysFile.exists()) {
+    apiKeysFile.inputStream().use { apiKeys.load(it) }
+}
+
+fun apiProp(key: String, default: String = ""): String =
+    apiKeys.getProperty(key, default)?.trim().orEmpty()
+
+fun apiPropEscaped(key: String, default: String = ""): String =
+    apiProp(key, default)
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
 
 android {
     namespace = "com.inania.Anthuria"
@@ -17,6 +33,25 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "OPENROUTER_API_KEY", "\"${apiPropEscaped("OPENROUTER_API_KEY")}\"")
+        buildConfigField(
+            "String",
+            "OPENROUTER_API_URL",
+            "\"${apiPropEscaped("OPENROUTER_API_URL", "https://openrouter.ai/api/v1/chat/completions")}\""
+        )
+        buildConfigField("String", "TRIPO_API_KEY", "\"${apiPropEscaped("TRIPO_API_KEY")}\"")
+        buildConfigField(
+            "String",
+            "TRIPO_BASE_URL",
+            "\"${apiPropEscaped("TRIPO_BASE_URL", "https://api.tripo3d.ai/")}\""
+        )
+        buildConfigField("String", "NANO_BANANA_API_KEY", "\"${apiPropEscaped("NANO_BANANA_API_KEY")}\"")
+        buildConfigField(
+            "String",
+            "NANO_BANANA_BASE_URL",
+            "\"${apiPropEscaped("NANO_BANANA_BASE_URL", "https://api.nanobanana.ai")}\""
+        )
     }
 
     buildTypes {
@@ -44,6 +79,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 
@@ -64,6 +100,7 @@ dependencies {
     implementation(libs.navigation.ui)
     implementation(libs.firebase.auth)
     implementation(libs.gridlayout)
+    implementation("androidx.recyclerview:recyclerview:1.4.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
