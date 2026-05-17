@@ -30,9 +30,18 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        // Enable support for modern Java APIs
+        isCoreLibraryDesugaringEnabled = true
+
+        sourceCompatibility = JavaVersion.VERSION_17 // Recommended for AGP 8.x
+        targetCompatibility = JavaVersion.VERSION_17
     }
+
+    // If using Kotlin, also update this:
+//    kotlinOptions {
+//        jvmTarget = "17"
+//    }
+
     buildFeatures {
         viewBinding = true
     }
@@ -47,9 +56,7 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.9.0")
     implementation("com.gorisse.thomas.sceneform:sceneform:1.23.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("org.mongodb:bson:4.11.0")
-    implementation("org.mongodb:mongodb-driver-sync:4.11.0")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.constraintlayout)

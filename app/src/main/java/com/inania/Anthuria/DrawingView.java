@@ -453,6 +453,68 @@ public class DrawingView extends View {
         redoStack.clear();
     }
 
+    /** Clears all placed furniture and AI overlay, saving undo state. */
+    public void clearAllFurniture() {
+        saveState();
+        furnitureItems.clear();
+        aiItems.clear();
+        selectedFurniture = null;
+        invalidate();
+    }
+
+    /** Returns current placed furniture as a GA spec list (same order as furnitureItems). */
+    public List<FurnitureOptimizer.FurnitureSpec> getFurnitureAsSpecs() {
+        List<FurnitureOptimizer.FurnitureSpec> specs = new ArrayList<>();
+        for (FurnitureItem f : furnitureItems) {
+            specs.add(new FurnitureOptimizer.FurnitureSpec(
+                    f.type, f.widthPx / pixelsPerMeter, f.depthPx / pixelsPerMeter));
+        }
+        return specs;
+    }
+
+    /** Repositions existing furnitureItems using GA JSON (items matched by order). */
+    public void applyGaToExistingFurniture(String json) {
+        try {
+            JSONArray arr = new JSONArray(json);
+            saveState();
+            for (int i = 0; i < Math.min(arr.length(), furnitureItems.size()); i++) {
+                JSONObject obj = arr.getJSONObject(i);
+                FurnitureItem f = furnitureItems.get(i);
+                f.position.set(
+                        (float) obj.getDouble("x") * pixelsPerMeter,
+                        (float) obj.getDouble("y") * pixelsPerMeter);
+                f.rotationDeg = (float) obj.optDouble("rotation", f.rotationDeg);
+            }
+            invalidate();
+        } catch (Exception ignored) {}
+    }
+
+    /** Creates new FurnitureItems from GA result JSON and adds them (optionally clearing first). */
+    public void applyGaResultAsFurnitureItems(String json, boolean clearFirst) {
+        if (clearFirst) {
+            furnitureItems.clear();
+            aiItems.clear();
+            selectedFurniture = null;
+        }
+        saveState();
+        try {
+            JSONArray arr = new JSONArray(json);
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject obj = arr.getJSONObject(i);
+                float x   = (float) obj.getDouble("x") * pixelsPerMeter;
+                float y   = (float) obj.getDouble("y") * pixelsPerMeter;
+                float w   = (float) obj.optDouble("width",  1.0) * pixelsPerMeter;
+                float d   = (float) obj.optDouble("depth",  0.5) * pixelsPerMeter;
+                float rot = (float) obj.optDouble("rotation", 0);
+                String type = obj.optString("type", "furniture");
+                FurnitureItem f = new FurnitureItem(
+                        ++furnitureIdSeq, type, new PointF(x, y), rot, false, 1, w, d);
+                furnitureItems.add(f);
+            }
+        } catch (Exception ignored) {}
+        invalidate();
+    }
+
     public void lockWallLength(Wall wall, boolean lock) {
         if (lock && !lockedWalls.contains(wall)) lockedWalls.add(wall);
         else lockedWalls.remove(wall);
@@ -568,6 +630,47 @@ public class DrawingView extends View {
         } catch (Exception e) {
             return "{\"walls\":[]}";
         }
+    }
+
+    /**
+     * Returns the first room's outline as PointF vertices in metres, in wall order.
+     * Falls back to AABB of all wall endpoints if no closed room exists.
+     */
+    public android.graphics.PointF[] getRoomPolygon() {
+        if (!rooms.isEmpty()) {
+            List<Wall> walls = rooms.get(0).getWalls();
+            if (!walls.isEmpty()) {
+                android.graphics.PointF[] pts = new android.graphics.PointF[walls.size()];
+                for (int i = 0; i < walls.size(); i++) {
+                    pts[i] = new android.graphics.PointF(
+                            walls.get(i).start.x / pixelsPerMeter,
+                            walls.get(i).start.y / pixelsPerMeter);
+                }
+                return pts;
+            }
+        }
+        // Fallback: build AABB from all wall endpoints
+        float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE;
+        float maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+        List<Wall> allWalls = new ArrayList<>(chainWalls);
+        allWalls.addAll(orphanWalls);
+        for (Room r : rooms) allWalls.addAll(r.getWalls());
+        for (Wall w : allWalls) {
+            for (android.graphics.PointF p : new android.graphics.PointF[]{w.start, w.end}) {
+                float xM = p.x / pixelsPerMeter, yM = p.y / pixelsPerMeter;
+                if (xM < minX) minX = xM;
+                if (xM > maxX) maxX = xM;
+                if (yM < minY) minY = yM;
+                if (yM > maxY) maxY = yM;
+            }
+        }
+        if (maxX <= minX) { minX = 0; minY = 0; maxX = 5; maxY = 5; }
+        return new android.graphics.PointF[]{
+                new android.graphics.PointF(minX, minY),
+                new android.graphics.PointF(maxX, minY),
+                new android.graphics.PointF(maxX, maxY),
+                new android.graphics.PointF(minX, maxY)
+        };
     }
 
     public String getManualFurnitureJson() {

@@ -204,7 +204,7 @@ public class EditorActivity extends BaseActivity implements DrawingView.EditorCa
             }
         });
 
-        btnAi.setOnClickListener(v -> sendPlanToAi(roomTypeSpinner.getSelectedItem().toString()));
+        btnAi.setOnClickListener(v -> showGaFurnitureSheet());
         btnView3D.setOnClickListener(v -> open3DView());
         btnUndo.setOnClickListener(v -> drawingView.undo());
         btnRedo.setOnClickListener(v -> drawingView.redo());
@@ -468,6 +468,124 @@ public class EditorActivity extends BaseActivity implements DrawingView.EditorCa
         builder.show();
     }
 
+    /** Step 1: show mode-selection dialog. */
+    private void showGaFurnitureSheet() {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.ai_mode_title)
+                .setItems(new CharSequence[]{
+                        getString(R.string.ai_mode_replace),
+                        getString(R.string.ai_mode_add),
+                        getString(R.string.ai_mode_arrange)
+                }, (dialog, which) -> {
+                    switch (which) {
+                        case 0: showCatalogSheet(true);  break;  // replace all + catalog
+                        case 1: showCatalogSheet(false); break;  // add to existing + catalog
+                        case 2: runGaArrangeExisting();  break;  // re-arrange what's placed
+                    }
+                })
+                .show();
+    }
+
+    /** Step 2a/b: catalog picker → GA → apply as FurnitureItems. */
+    private void showCatalogSheet(boolean replaceAll) {
+        BottomSheetDialog sheet = new BottomSheetDialog(this);
+        ScrollView scroll = new ScrollView(this);
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(32, 16, 32, 32);
+
+        TextView title = new TextView(this);
+        title.setTextSize(18f);
+        title.setText(replaceAll ? R.string.ai_mode_replace : R.string.ai_mode_add);
+        content.addView(title);
+
+        String catalogKey = FurnitureCatalog.catalogKeyForSpinnerLabel(
+                roomTypeSpinner.getSelectedItem().toString());
+        List<String> typeIds = FurnitureCatalog.typesForRoom(catalogKey);
+        List<CatalogRow> rows = new ArrayList<>();
+
+        for (String typeId : typeIds) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setPadding(0, 10, 0, 10);
+            CheckBox cb = new CheckBox(this);
+            cb.setText(FurnitureCatalog.humanLabel(typeId));
+            LinearLayout.LayoutParams cbLp = new LinearLayout.LayoutParams(0,
+                    LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            cb.setLayoutParams(cbLp);
+            EditText count = new EditText(this);
+            count.setHint(R.string.quantity);
+            count.setText("1");
+            count.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+            count.setLayoutParams(new LinearLayout.LayoutParams(140,
+                    LinearLayout.LayoutParams.WRAP_CONTENT));
+            row.addView(cb);
+            row.addView(count);
+            content.addView(row);
+            rows.add(new CatalogRow(typeId, cb, count));
+        }
+
+        MaterialButton apply = new MaterialButton(this);
+        apply.setText(R.string.apply);
+        apply.setOnClickListener(v -> {
+            List<FurnitureOptimizer.FurnitureSpec> specs = new ArrayList<>();
+            for (CatalogRow r : rows) {
+                if (!r.check.isChecked()) continue;
+                int qty = 1;
+                try { qty = Math.max(1, Math.min(20,
+                        Integer.parseInt(r.count.getText().toString().trim()))); }
+                catch (Exception ignored) {}
+                float[] sz = FurnitureCatalog.defaultSizePx(r.typeId);
+                float wM = sz[0] / 100f, dM = sz[1] / 100f;
+                for (int i = 0; i < qty; i++)
+                    specs.add(new FurnitureOptimizer.FurnitureSpec(r.typeId, wM, dM));
+            }
+            if (specs.isEmpty()) {
+                Toast.makeText(this, R.string.select_items, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            sheet.dismiss();
+            Toast.makeText(this, R.string.ai_analyzing, Toast.LENGTH_SHORT).show();
+            PointF[] polygon  = drawingView.getRoomPolygon();
+            String   planJson = drawingView.getRoomDataAsJSON();
+            FurnitureOptimizer.optimize(polygon, planJson, specs, new FurnitureOptimizer.Callback() {
+                @Override public void onResult(String json) {
+                    drawingView.applyGaResultAsFurnitureItems(json, replaceAll);
+                    aiProposedFurnitureJson = null;
+                    Toast.makeText(EditorActivity.this, R.string.ai_done, Toast.LENGTH_SHORT).show();
+                }
+                @Override public void onError(String msg) {
+                    Toast.makeText(EditorActivity.this, msg, Toast.LENGTH_SHORT).show();
+                }
+            });
+        });
+        content.addView(apply);
+        scroll.addView(content);
+        sheet.setContentView(scroll);
+        sheet.show();
+    }
+
+    /** Step 2c: re-arrange already-placed furniture with GA. */
+    private void runGaArrangeExisting() {
+        List<FurnitureOptimizer.FurnitureSpec> specs = drawingView.getFurnitureAsSpecs();
+        if (specs.isEmpty()) {
+            Toast.makeText(this, R.string.ai_no_furniture, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Toast.makeText(this, R.string.ai_arranging, Toast.LENGTH_SHORT).show();
+        PointF[] polygon  = drawingView.getRoomPolygon();
+        String   planJson = drawingView.getRoomDataAsJSON();
+        FurnitureOptimizer.optimize(polygon, planJson, specs, new FurnitureOptimizer.Callback() {
+            @Override public void onResult(String json) {
+                drawingView.applyGaToExistingFurniture(json);
+                Toast.makeText(EditorActivity.this, R.string.ai_done, Toast.LENGTH_SHORT).show();
+            }
+            @Override public void onError(String msg) {
+                Toast.makeText(EditorActivity.this, msg, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
     private void showFurnitureBottomSheet() {
         BottomSheetDialog sheet = new BottomSheetDialog(this);
         ScrollView scroll = new ScrollView(this);
@@ -512,7 +630,7 @@ public class EditorActivity extends BaseActivity implements DrawingView.EditorCa
                 if (!r.check.isChecked()) continue;
                 int n = 1;
                 try { n = Math.max(1, Math.min(20, Integer.parseInt(r.count.getText().toString().trim()))); } catch (Exception ignored) {}
-                float[] wh = FurnitureLayout.defaultSizePx(r.typeId);
+                float[] wh = FurnitureCatalog.defaultSizePx(r.typeId);
                 for (int i = 0; i < n; i++) toAdd.add(new FurnitureItem(0, r.typeId, new PointF(0, 0), 0f, false, 1, wh[0], wh[1]));
             }
             if (toAdd.isEmpty()) { Toast.makeText(this, R.string.select_items, Toast.LENGTH_SHORT).show(); return; }

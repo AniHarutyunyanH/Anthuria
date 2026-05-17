@@ -53,6 +53,14 @@
     <string name="saved_at">Saved at: </string>
     <string name="tape_measure">Tape measure</string>
     <string name="share_blueprint">Share blueprint</string>
+    <string name="room3d_add_furniture">Add furniture</string>
+    <string name="room3d_catalog_title">Add furniture</string>
+    <string name="room3d_cat_table">Table</string>
+    <string name="room3d_cat_cabinet">Cabinet</string>
+    <string name="room3d_cat_sofa">Sofa</string>
+    <string name="room3d_cat_generic">Generic block</string>
+    <string name="room3d_furniture_selected">Selected: %1$s</string>
+    <string name="language_changed">Language updated</string>
     <string name="quantity">Qty</string>
     <string name="select_items">Select items</string>
     <string name="error_3d_prep">3D prep error</string>
@@ -60,6 +68,13 @@
     <string name="tape_measure_hint">Tape: first touch - start, release - end.</string>
     <string name="edit_distance">Edit distance (m)</string>
     <string name="ai_furniture">AI Furniture</string>
+    <string name="ai_mode_title">AI Furniture — choose mode</string>
+    <string name="ai_mode_replace">Replace all and choose from catalog</string>
+    <string name="ai_mode_add">Add to existing from catalog</string>
+    <string name="ai_mode_arrange">Arrange furniture that is already placed</string>
+    <string name="ai_no_furniture">No furniture placed yet — add some first.</string>
+    <string name="ai_arranging">Arranging furniture…</string>
+    <string name="ai_done">Furniture placed!</string>
     <string name="notifications_enabled">Notifications enabled</string>
     <string name="notifications_disabled">Notifications disabled</string>
     <string name="support_contact">Support: support@inania.com</string>
@@ -92,4 +107,8 @@
     <!-- Navigation -->
     <string name="first_fragment_label">First Fragment</string>
     <string name="second_fragment_label">Second Fragment</string>
+    <string name="kitchen" translatable="false">Кухня</string>
+    <string name="bedroom" translatable="false">Спальня</string>
+    <string name="living_room" translatable="false">Гостиная</string>
+    <string name="bathroom" translatable="false">Ванная</string>
 </resources>

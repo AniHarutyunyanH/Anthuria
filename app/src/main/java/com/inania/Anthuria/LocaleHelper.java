@@ -22,7 +22,7 @@ public final class LocaleHelper {
 
     public static void setLanguage(Context ctx, String lang) {
         ctx.getSharedPreferences(AnthuriaApp.PREFS_NAME, Context.MODE_PRIVATE)
-                .edit().putString(KEY_LANGUAGE, lang).apply();
+                .edit().putString(KEY_LANGUAGE, lang).commit(); // commit = synchronous, safe before restart
     }
 
     public static Context wrap(Context base) {

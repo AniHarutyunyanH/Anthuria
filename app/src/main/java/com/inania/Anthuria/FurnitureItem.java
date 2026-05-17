@@ -1,5 +1,8 @@
 package com.inania.Anthuria;
 
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.PointF;
 import android.graphics.RectF;
 
@@ -100,5 +103,33 @@ public class FurnitureItem {
     /** Rotation in degrees (canvas space). */
     public float getRotationDeg() {
         return rotationDeg;
+    }
+}
+
+/** Metres-based interior item rendered on the AI overlay layer. */
+class InteriorItem {
+    public String name;
+    public float  x, y;           // metres
+    public float  width, depth;   // metres
+    public float  rotation;
+
+    public InteriorItem(String name, float x, float y, float w, float d, float rot) {
+        this.name = name; this.x = x; this.y = y; this.width = w; this.depth = d; this.rotation = rot;
+    }
+
+    public void draw(Canvas canvas, Paint paint, float pixelsPerMeter) {
+        float pw = width * pixelsPerMeter, pd = depth * pixelsPerMeter;
+        canvas.save();
+        canvas.translate(x * pixelsPerMeter, y * pixelsPerMeter);
+        canvas.rotate(rotation);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(3f);
+        paint.setColor(Color.parseColor("#4ABAED"));
+        canvas.drawRect(-pw/2, -pd/2, pw/2, pd/2, paint);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setAlpha(30);
+        canvas.drawRect(-pw/2, -pd/2, pw/2, pd/2, paint);
+        paint.setAlpha(255);
+        canvas.restore();
     }
 }

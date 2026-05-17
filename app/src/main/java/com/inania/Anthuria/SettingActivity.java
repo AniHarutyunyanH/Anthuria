@@ -66,18 +66,15 @@ public class SettingActivity extends BaseActivity {
         spinner.setSelection(LocaleHelper.LANG_RU.equals(current) ? 1 : 0, false);
 
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            boolean ignoreFirst = true;
-
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                if (ignoreFirst) { ignoreFirst = false; return; }
                 String newLang = position == 1 ? LocaleHelper.LANG_RU : LocaleHelper.LANG_EN;
-                if (!newLang.equals(LocaleHelper.getSavedLanguage(SettingActivity.this))) {
-                    LocaleHelper.setLanguage(SettingActivity.this, newLang);
-                    Intent intent = new Intent(SettingActivity.this, MainActivity.class);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                    startActivity(intent);
-                }
+                // Guard covers both the automatic initial callback and same-item re-taps
+                if (newLang.equals(LocaleHelper.getSavedLanguage(SettingActivity.this))) return;
+                LocaleManager.applyLanguage(SettingActivity.this, newLang);
+                LocaleManager.relocalizeActivity(SettingActivity.this);
+                Toast.makeText(SettingActivity.this,
+                        R.string.language_changed, Toast.LENGTH_SHORT).show();
             }
 
             @Override

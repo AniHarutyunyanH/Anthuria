@@ -23,7 +23,9 @@
         <activity android:name=".WelcomeActivity" />
         <activity android:name=".LoginActivity" />
         <activity android:name=".RegisterActivity" />
-        <activity android:name=".Room3DActivity" />
+        <activity
+            android:name=".Room3DActivity"
+            android:configChanges="locale|layoutDirection|screenSize|orientation|keyboardHidden" />
         <activity android:name=".FurnitureGalleryActivity" />
         <activity android:name=".ModelViewerActivity" />
         <activity android:name=".ProjectListActivity" />
